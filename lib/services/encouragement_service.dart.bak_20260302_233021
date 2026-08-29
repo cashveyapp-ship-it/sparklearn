@@ -1,0 +1,88 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/encouragement.dart';
+import '../providers/firebase_providers.dart';
+
+final encouragementServiceProvider = Provider<EncouragementService>((ref) {
+  return EncouragementService(
+    db: ref.watch(firestoreProvider),
+    auth: ref.watch(firebaseAuthProvider),
+  );
+});
+
+class EncouragementService {
+  EncouragementService({required this.db, required this.auth});
+  final FirebaseFirestore db;
+  final FirebaseAuth auth;
+
+  CollectionReference<Map<String, dynamic>> _col(String studentId) =>
+      db.collection('students').doc(studentId).collection('encouragements');
+
+  Future<void> send({
+    required String studentId,
+    required String messageKey,
+  }) async {
+    final parentUid = auth.currentUser?.uid;
+    if (parentUid == null) throw Exception('Not signed in');
+
+    final id = db.collection('_').doc().id;
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    debugPrint('[EncouragementService] Writing to students/$studentId/encouragements/$id');
+
+    await _col(studentId).doc(id).set({
+      'id': id,
+      'studentId': studentId,
+      'parentUid': parentUid,
+      'messageKey': messageKey,
+      'createdAt': now,
+      'seenAt': null,
+    });
+
+    debugPrint('[EncouragementService] âœ… Sent $messageKey to $studentId');
+  }
+
+  Stream<List<Encouragement>> streamForStudent(String studentId) {
+    return _col(studentId)
+        .orderBy('createdAt', descending: true)
+        .limit(20)
+        .snapshots()
+        .map((s) => s.docs.map((d) => Encouragement.fromMap(d.data())).toList());
+  }
+
+  Stream<int> unreadCount(String studentId) {
+    return _col(studentId)
+        .orderBy('createdAt', descending: true)
+        .limit(50)
+        .snapshots()
+        .map((s) => s.docs.where((d) => d.data()['seenAt'] == null).length);
+  }
+
+  Future<void> markAllSeen(String studentId) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    final snap = await _col(studentId)
+        .where('seenAt', isEqualTo: null)
+        .get();
+
+    if (snap.docs.isEmpty) return;
+
+    final batch = db.batch();
+    for (final doc in snap.docs) {
+      batch.update(doc.reference, {'seenAt': now});
+    }
+
+    await batch.commit();
+    debugPrint('[EncouragementService] Marked unseen as seen for ');
+  }
+    await batch.commit();
+    debugPrint('[EncouragementService] Marked unseen as seen for $studentId');
+  }
+
+  Future<void> delete(String studentId, String encouragementId) async {
+    await _col(studentId).doc(encouragementId).delete();
+    debugPrint('[EncouragementService] Deleted $encouragementId');
+  }
+}

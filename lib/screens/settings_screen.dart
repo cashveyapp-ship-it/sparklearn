@@ -1,0 +1,594 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/widgets/app_card.dart';
+import '../../providers/firebase_providers.dart';
+import '../../providers/user_profile_provider.dart';
+
+class SettingsScreen extends ConsumerWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(userProfileProvider).asData?.value;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Settings')),
+      body: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          // ── Account info ──────────────────────────────────────────────────
+          AppCard(
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 26,
+                  backgroundColor: AppColors.indigo.withOpacity(0.12),
+                  child: const Icon(Icons.person_rounded,
+                      color: AppColors.indigo, size: 28),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(profile?.displayName ?? 'User',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w800, fontSize: 16)),
+                      Text(profile?.email ?? '',
+                          style: const TextStyle(
+                              color: AppColors.textMuted, fontSize: 13)),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          color: AppColors.indigo.withOpacity(0.10),
+                        ),
+                        child: Text(
+                          profile?.role == 'parent' ? 'Parent' : 'Student',
+                          style: const TextStyle(
+                              color: AppColors.indigo,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // ── Security ──────────────────────────────────────────────────────
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Security',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                const SizedBox(height: 4),
+                _Tile(
+                  icon: Icons.lock_outline_rounded,
+                  label: 'Change password',
+                  onTap: () => _showChangePassword(context, ref),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // ── Legal ─────────────────────────────────────────────────────────
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Legal & Support',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                const SizedBox(height: 4),
+                _Tile(
+                  icon: Icons.description_outlined,
+                  label: 'Terms of Service',
+                  onTap: () =>
+                      _showPolicy(context, _tosContent, 'Terms of Service'),
+                ),
+                _Tile(
+                  icon: Icons.privacy_tip_outlined,
+                  label: 'Privacy Policy',
+                  onTap: () =>
+                      _showPolicy(context, _privacyContent, 'Privacy Policy'),
+                ),
+                _Tile(
+                  icon: Icons.mail_outline_rounded,
+                  label: 'Contact Support',
+                  sublabel: 'alerttmenow@gmail.com',
+                  onTap: () => _showContact(context),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // ── Danger zone ───────────────────────────────────────────────────
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Account Actions',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        color: AppColors.coral)),
+                const SizedBox(height: 4),
+                _Tile(
+                  icon: Icons.logout_rounded,
+                  label: 'Sign out',
+                  color: AppColors.textMuted,
+                  onTap: () => _confirmSignOut(context, ref),
+                ),
+                _Tile(
+                  icon: Icons.delete_forever_rounded,
+                  label: 'Delete account',
+                  color: AppColors.coral,
+                  onTap: () => _showDeleteAccount(context, ref),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+          const Center(
+            child: Text('SparkLearn v1.0 · an2app.com',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  // ── Change password ────────────────────────────────────────────────────────
+
+  void _showChangePassword(BuildContext context, WidgetRef ref) {
+    showDialog(
+        context: context, builder: (_) => _ChangePasswordDialog(ref: ref));
+  }
+
+  // ── Policy viewer ──────────────────────────────────────────────────────────
+
+  void _showPolicy(BuildContext context, String content, String title) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => Scaffold(
+        appBar: AppBar(title: Text(title)),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child:
+              Text(content, style: const TextStyle(height: 1.6, fontSize: 14)),
+        ),
+      ),
+    ));
+  }
+
+  // ── Contact ────────────────────────────────────────────────────────────────
+
+  void _showContact(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Contact Support'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('We\'re here to help! Reach out any time:',
+                style: TextStyle(color: AppColors.textMuted)),
+            SizedBox(height: 16),
+            Row(children: [
+              Icon(Icons.mail_outline_rounded,
+                  color: AppColors.indigo, size: 20),
+              SizedBox(width: 10),
+              Text('alerttmenow@gmail.com',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ]),
+            SizedBox(height: 10),
+            Row(children: [
+              Icon(Icons.language_rounded, color: AppColors.indigo, size: 20),
+              SizedBox(width: 10),
+              Text('www.an2app.com',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ]),
+            SizedBox(height: 16),
+            Text('Response time: within 24 hours on business days.',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
+  // ── Sign out ───────────────────────────────────────────────────────────────
+
+  void _confirmSignOut(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text('You will be returned to the sign-in screen.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Sign out')),
+        ],
+      ),
+    );
+    if (ok == true) await ref.read(firebaseAuthProvider).signOut();
+  }
+
+  // ── Delete account ─────────────────────────────────────────────────────────
+
+  void _showDeleteAccount(BuildContext context, WidgetRef ref) {
+    showDialog(
+        context: context, builder: (_) => _DeleteAccountDialog(ref: ref));
+  }
+}
+
+// ── Policy text ───────────────────────────────────────────────────────────────
+
+const _tosContent = '''
+Terms of Service
+Last updated: January 2025
+
+1. Acceptance of Terms
+By using SparkLearn ("the App"), you agree to these Terms of Service. If you do not agree, please do not use the App.
+
+2. Description of Service
+SparkLearn is an educational application designed to support students with reading and comprehension skills. The App includes an AI-powered tutoring assistant, practice exercises, and parent monitoring tools.
+
+3. User Accounts
+You must provide accurate information when creating an account. You are responsible for keeping your account credentials secure. Users under 13 require parental consent.
+
+4. Parent and Student Accounts
+Parent accounts may link to student accounts to monitor progress. Parent dashboards are read-only. Parents may send pre-defined encouragement messages to linked students.
+
+5. Acceptable Use
+You agree not to:
+• Use the App for any unlawful purpose
+• Share your account with others
+• Attempt to reverse-engineer or tamper with the App
+• Upload harmful, offensive, or inappropriate content
+
+6. AI Tutor
+The AI Tutor is powered by OpenAI and is designed for educational purposes. Responses are intended for reading support only. The AI Tutor is not a substitute for professional educators or therapists.
+
+7. Privacy
+Your use of the App is also governed by our Privacy Policy, which is incorporated into these Terms.
+
+8. Termination
+We reserve the right to suspend or terminate accounts that violate these Terms.
+
+9. Disclaimer
+The App is provided "as is" without warranties of any kind. We do not guarantee that the App will be error-free or uninterrupted.
+
+10. Contact
+For questions about these Terms, contact us at alerttmenow@gmail.com or visit www.an2app.com.
+''';
+
+const _privacyContent = '''
+Privacy Policy
+Last updated: January 2025
+
+1. Introduction
+SparkLearn ("we", "us", "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and protect your information.
+
+2. Information We Collect
+• Account information: name, email address, and role (student or parent)
+• Learning data: reading level, session accuracy, time spent, skill progress
+• AI Tutor conversations: messages you send to and receive from the AI Tutor
+• Encouragement messages sent between parents and students
+
+3. How We Use Your Information
+• To provide and improve the App's educational features
+• To personalise the AI Tutor's responses to your reading level
+• To allow parents to monitor their linked student's progress
+• To send encouragement messages from parents to students
+
+4. Data Storage
+All data is stored securely using Google Firebase (Firestore and Firebase Auth), which complies with industry-standard security practices. Data is stored in the United States.
+
+5. Data Sharing
+We do not sell your personal data. We do not share your data with third parties except:
+• OpenAI (for AI Tutor functionality — governed by OpenAI's privacy policy)
+• Google Firebase (for authentication and database services)
+
+6. Children's Privacy
+SparkLearn is designed for students. We take children's privacy seriously. Students under 13 must have parental consent. Parents can request deletion of their child's data at any time.
+
+7. Your Rights
+You have the right to:
+• Access your personal data
+• Correct inaccurate data
+• Request deletion of your account and data
+• Withdraw consent at any time
+
+8. Data Deletion
+To delete your account and all associated data, use the "Delete Account" option in Settings, or contact us at alerttmenow@gmail.com.
+
+9. Changes to This Policy
+We may update this Privacy Policy from time to time. We will notify users of significant changes through the App.
+
+10. Contact
+For privacy-related questions or requests, contact us at:
+Email: alerttmenow@gmail.com
+Website: www.an2app.com
+''';
+
+// ── Reusable tile ─────────────────────────────────────────────────────────────
+
+class _Tile extends StatelessWidget {
+  const _Tile(
+      {required this.icon,
+      required this.label,
+      required this.onTap,
+      this.sublabel,
+      this.color});
+  final IconData icon;
+  final String label;
+  final String? sublabel;
+  final Color? color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? AppColors.text;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: c, size: 22),
+      title:
+          Text(label, style: TextStyle(color: c, fontWeight: FontWeight.w600)),
+      subtitle: sublabel != null
+          ? Text(sublabel!,
+              style: const TextStyle(color: AppColors.textMuted, fontSize: 12))
+          : null,
+      trailing: const Icon(Icons.chevron_right_rounded,
+          color: AppColors.textMuted, size: 20),
+      onTap: onTap,
+    );
+  }
+}
+
+// ── Change password dialog ────────────────────────────────────────────────────
+
+class _ChangePasswordDialog extends ConsumerStatefulWidget {
+  const _ChangePasswordDialog({required this.ref});
+  final WidgetRef ref;
+
+  @override
+  ConsumerState<_ChangePasswordDialog> createState() => _CPState();
+}
+
+class _CPState extends ConsumerState<_ChangePasswordDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _cur = TextEditingController();
+  final _new = TextEditingController();
+  final _con = TextEditingController();
+  bool _loading = false;
+  bool _o1 = true, _o2 = true, _o3 = true;
+  String? _err;
+
+  @override
+  void dispose() {
+    _cur.dispose();
+    _new.dispose();
+    _con.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _loading = true;
+      _err = null;
+    });
+    try {
+      final user = ref.read(firebaseAuthProvider).currentUser!;
+      final cred =
+          EmailAuthProvider.credential(email: user.email!, password: _cur.text);
+      await user.reauthenticateWithCredential(cred);
+      await user.updatePassword(_new.text);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Password updated ✅')));
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() => _err = e.code == 'wrong-password'
+          ? 'Current password is incorrect.'
+          : 'Could not update password. Try again.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Change password'),
+        content: Form(
+          key: _formKey,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            _passField(
+                'Current password',
+                _cur,
+                _o1,
+                () => setState(() => _o1 = !_o1),
+                (v) => (v ?? '').isEmpty ? 'Required' : null),
+            const SizedBox(height: 10),
+            _passField(
+                'New password',
+                _new,
+                _o2,
+                () => setState(() => _o2 = !_o2),
+                (v) => (v ?? '').length < 8 ? 'At least 8 characters' : null),
+            const SizedBox(height: 10),
+            _passField(
+                'Confirm new password',
+                _con,
+                _o3,
+                () => setState(() => _o3 = !_o3),
+                (v) => v != _new.text ? 'Passwords don\'t match' : null),
+            if (_err != null) ...[
+              const SizedBox(height: 10),
+              Text(_err!,
+                  style: const TextStyle(color: AppColors.coral, fontSize: 13)),
+            ],
+          ]),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          FilledButton(
+            onPressed: _loading ? null : _submit,
+            child: _loading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
+                : const Text('Update'),
+          ),
+        ],
+      );
+
+  Widget _passField(String label, TextEditingController ctrl, bool obscure,
+      VoidCallback toggle, String? Function(String?) validator) {
+    return TextFormField(
+      controller: ctrl,
+      obscureText: obscure,
+      decoration: InputDecoration(
+        labelText: label,
+        suffixIcon: IconButton(
+          icon: Icon(obscure ? Icons.visibility_off : Icons.visibility),
+          onPressed: toggle,
+        ),
+      ),
+      validator: validator,
+    );
+  }
+}
+
+// ── Delete account dialog ────────────────────────────────────────────────────
+
+class _DeleteAccountDialog extends ConsumerStatefulWidget {
+  const _DeleteAccountDialog({required this.ref});
+  final WidgetRef ref;
+
+  @override
+  ConsumerState<_DeleteAccountDialog> createState() => _DAState();
+}
+
+class _DAState extends ConsumerState<_DeleteAccountDialog> {
+  final _ctrl = TextEditingController();
+  bool _loading = false, _obscure = true;
+  String? _err;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _delete() async {
+    if (_ctrl.text.isEmpty) {
+      setState(() => _err = 'Enter your password.');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _err = null;
+    });
+    try {
+      final user = ref.read(firebaseAuthProvider).currentUser!;
+      final cred = EmailAuthProvider.credential(
+          email: user.email!, password: _ctrl.text);
+      await user.reauthenticateWithCredential(cred);
+      final db = ref.read(firestoreProvider);
+      await db.doc('users/${user.uid}').delete();
+      await db.doc('students/${user.uid}').delete().catchError((_) {});
+      await user.delete();
+    } on FirebaseAuthException catch (e) {
+      setState(() => _err = e.code == 'wrong-password'
+          ? 'Incorrect password.'
+          : 'Could not delete. Try again.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Row(children: [
+          Icon(Icons.warning_rounded, color: AppColors.coral),
+          SizedBox(width: 8),
+          Text('Delete account'),
+        ]),
+        content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                  'This permanently deletes your account and all data. Cannot be undone.',
+                  style: TextStyle(color: AppColors.textMuted)),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _ctrl,
+                obscureText: _obscure,
+                decoration: InputDecoration(
+                  labelText: 'Confirm password',
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                        _obscure ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                  ),
+                ),
+              ),
+              if (_err != null) ...[
+                const SizedBox(height: 8),
+                Text(_err!,
+                    style:
+                        const TextStyle(color: AppColors.coral, fontSize: 13)),
+              ],
+            ]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.coral),
+            onPressed: _loading ? null : _delete,
+            child: _loading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
+                : const Text('Delete forever'),
+          ),
+        ],
+      );
+}

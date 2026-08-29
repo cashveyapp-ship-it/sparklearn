@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "908629088749",
+    "project_id": "com-example-sparklearn",
+    "storage_bucket": "com-example-sparklearn.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:908629088749:android:3dd282f34dc80bdf9a2fe4",
+        "android_client_info": {
+          "package_name": "com.example.sparklearn"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD0U_eoYPRuS9I3hiAWMHWPjJI0sssbPRA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

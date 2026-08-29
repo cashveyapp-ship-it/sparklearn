@@ -1,0 +1,30 @@
+{
+  "level_3": [
+    {
+      "id": "r3_1",
+      "sentence": "The cat sat on the warm chair.",
+      "question": "What does this sentence mean?",
+      "ideal": "A cat is sitting on a chair that feels warm."
+    },
+    {
+      "id": "r3_2",
+      "sentence": "Mia packed her bag for school.",
+      "question": "What is Mia doing?",
+      "ideal": "She is putting her things in her bag to go to school."
+    }
+  ],
+  "level_4": [
+    {
+      "id": "r4_1",
+      "sentence": "After the rain stopped, the sidewalk glistened.",
+      "question": "What does glistened mean here?",
+      "ideal": "It looked shiny and wet."
+    },
+    {
+      "id": "r4_2",
+      "sentence": "Jordan hesitated before answering the question.",
+      "question": "Why might Jordan hesitate?",
+      "ideal": "Jordan may feel unsure or need time to think."
+    }
+  ]
+}

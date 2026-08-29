@@ -1,0 +1,18 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/user_profile.dart';
+import 'firebase_providers.dart';
+
+final userProfileProvider = StreamProvider<UserProfile?>((ref) {
+  final auth = ref.watch(firebaseAuthProvider);
+  final db = ref.watch(firestoreProvider);
+  final u = auth.currentUser;
+
+  if (u == null) return Stream.value(null);
+
+  return db.doc('users/${u.uid}').snapshots().map((snap) {
+    if (!snap.exists) return null;
+    return UserProfile.fromMap(snap.data()!);
+  });
+});
