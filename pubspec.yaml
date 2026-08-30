@@ -1,7 +1,7 @@
 name: sparklearn
 description: SparkLearn - supportive learning app with parent dashboard.
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -36,6 +36,7 @@ dependencies:
   collection: ^1.18.0
   firebase_app_check: ^0.3.2+10
   flutter_dotenv: ^6.0.0
+  in_app_purchase: ^3.3.0
 
 dev_dependencies:
   http: ^1.2.2

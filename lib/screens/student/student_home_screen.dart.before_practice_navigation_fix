@@ -10,6 +10,7 @@ import '../../core/widgets/progress_ring.dart';
 import '../../providers/student_provider.dart';
 import '../../providers/shell_tab_provider.dart';
 import '../../providers/firebase_providers.dart';
+import '../student/practice_screen.dart';
 
 class StudentHomeScreen extends ConsumerStatefulWidget {
   const StudentHomeScreen({super.key, required this.studentId});
@@ -94,7 +95,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
         ),
       ),
       data: (s) {
-        // âœ… Student doc missing: create it (once) and show a clear setup state
+        // ✅ Student doc missing: create it (once) and show a clear setup state
         if (s == null) {
           _ensureStudentDocExists();
 
@@ -123,7 +124,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
           );
         }
 
-        // âœ… Normal UI (your original screen)
+        // ✅ Normal UI (your original screen)
         final greeting = _greeting();
 
         return SingleChildScrollView(
@@ -131,7 +132,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Good $greeting ðŸ‘‹',
+              Text('Good $greeting 👋',
                   style: const TextStyle(color: AppColors.textMuted)),
               const SizedBox(height: 4),
               Text('Hi, ${s.name}',
@@ -184,7 +185,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
                                   color: AppColors.textMuted,
                                   fontWeight: FontWeight.w700)),
                           SizedBox(height: 4),
-                          Text('Keep going â€” small steps count.',
+                          Text('Keep going — small steps count.',
                               style: TextStyle(color: AppColors.textMuted)),
                         ],
                       ),
@@ -269,7 +270,11 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
               AppButton(
                 label: 'Open Practice',
                 icon: Icons.menu_book_rounded,
-                onPressed: () => ref.read(shellTabProvider.notifier).state = 2,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          PracticeScreen(studentId: widget.studentId)),
+                ),
               ),
             ],
           ),

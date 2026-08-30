@@ -286,8 +286,7 @@ class _RolePickerScreenState extends ConsumerState<_RolePickerScreen> {
               else ...[
                 _btn('student', '🎓  I am a Student'),
                 const SizedBox(height: 16),
-                _btn('parent',
-                    '👨‍👩‍👧  I am a Parent'),
+                _btn('parent', '👨‍👩‍👧  I am a Parent'),
               ],
               if (_err != null) ...[
                 const SizedBox(height: 16),
