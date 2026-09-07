@@ -267,10 +267,106 @@ exports.verifyPremiumPurchase = onCall(async (request) => {
   }
 
   if (source == "app_store") {
-    throw new HttpsError(
-      "failed-precondition",
-      "Apple subscription verification is not configured yet."
+    const fs = require("fs");
+    const path = require("path");
+
+    const {
+      SignedDataVerifier,
+      Environment,
+    } = require("@apple/app-store-server-library");
+
+    const bundleId = "com.example.sparklearn";
+    const appAppleId = 6806709516;
+
+    const rootCertificate = fs.readFileSync(
+      path.join(__dirname, "certs", "AppleRootCA-G3.cer")
     );
+
+    async function verifyAppleTransaction(environment, appleId) {
+      const verifier = new SignedDataVerifier(
+        [rootCertificate],
+        true,
+        environment,
+        bundleId,
+        appleId
+      );
+
+      return verifier.verifyAndDecodeTransaction(
+        verificationData
+      );
+    }
+
+    let transaction;
+
+    try {
+      transaction = await verifyAppleTransaction(
+        Environment.PRODUCTION,
+        appAppleId
+      );
+    } catch (productionError) {
+      try {
+        transaction = await verifyAppleTransaction(
+          Environment.SANDBOX,
+          undefined
+        );
+      } catch (sandboxError) {
+        console.error(
+          "Apple subscription verification failed:",
+          sandboxError
+        );
+
+        throw new HttpsError(
+          "failed-precondition",
+          "Apple could not verify this subscription."
+        );
+      }
+    }
+
+    if (transaction.productId !== productId) {
+      throw new HttpsError(
+        "failed-precondition",
+        "The verified Apple subscription product does not match."
+      );
+    }
+
+    const expiresAtMs =
+      typeof transaction.expiresDate === "number"
+        ? transaction.expiresDate
+        : null;
+
+    if (
+      expiresAtMs !== null &&
+      expiresAtMs <= Date.now()
+    ) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This Apple subscription is not active."
+      );
+    }
+
+    await db.doc(`entitlements/${uid}`).set({
+      premiumActive: true,
+      productId,
+      platform: "app_store",
+      purchaseId:
+        transaction.transactionId ??
+        purchaseId ??
+        null,
+      purchaseOwnerUid: uid,
+      source: "own_subscription",
+      expiresAtMs,
+      subscriptionState: "ACTIVE",
+      updatedAt: FieldValue.serverTimestamp(),
+    }, {
+      merge: true,
+    });
+
+    return {
+      premiumActive: true,
+      productId,
+      platform: "app_store",
+      expiresAtMs,
+    };
   }
 
   throw new HttpsError(
@@ -278,4 +374,6 @@ exports.verifyPremiumPurchase = onCall(async (request) => {
     "Unsupported purchase source."
   );
 });
+
+
 

@@ -1,6 +1,7 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 
 class SubscriptionService {
   SubscriptionService._();
@@ -64,6 +65,20 @@ class SubscriptionService {
     await _iap.restorePurchases();
   }
 
+  Future<bool> hasPremiumAccess() async {
+    try {
+      final callable = _functions.httpsCallable('getPremiumEntitlement');
+      final result = await callable.call();
+
+      final data = Map<String, dynamic>.from(result.data as Map);
+
+      return data['premiumActive'] == true;
+    } catch (e) {
+      debugPrint('Premium entitlement check failed: $e');
+      return false;
+    }
+  }
+
   Future<void> _handlePurchases(
     List<PurchaseDetails> purchaseDetailsList,
   ) async {
@@ -90,4 +105,3 @@ class SubscriptionService {
     _subscription?.cancel();
   }
 }
-
