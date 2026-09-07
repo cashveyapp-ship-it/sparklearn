@@ -28,6 +28,7 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
   int _correct = 0;
   int _total = 0;
   bool _loading = true;
+  String _activeGoal = 'Reading: Understanding paragraphs';
 
   List<PracticeItem> _items = [];
 
@@ -42,8 +43,13 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
     final student =
         ref.read(studentDocProvider(widget.studentId)).asData?.value;
     final level = student?.readingLevel ?? 3.9;
+    final goal = student?.todayGoal ?? 'Reading: Understanding paragraphs';
+    _activeGoal = goal;
     _bucket = level.round().clamp(3, 4);
-    _items = await _repo.loadReadingItems(_bucket);
+    _items = await _repo.loadReadingItems(
+      _bucket,
+      goal: goal,
+    );
     _idx = 0;
     _correct = 0;
     _total = 0;
@@ -62,7 +68,7 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
     if (ok) _correct += 1;
 
     final feedback = ok
-        ? 'Nice work — that\'s right.'
+        ? 'Nice work - that' 's right.'
         : 'Good try. A gentle hint: ${_hint(ideal)}';
 
     // Show snack (no red X)
@@ -126,16 +132,42 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
     // Update student stats
     final newLevel =
         ((student?.readingLevel ?? 3.9) + levelDelta).clamp(1.0, 12.0);
-    final newWeekly = ((student?.weeklyProgress ?? 0.0) + 0.05).clamp(0.0, 1.0);
-    final newTime = (student?.timeSpentMinThisWeek ?? 0) + 7;
-    final newVoice = ((student?.voiceUsagePct ?? 0) + 2).clamp(0, 100);
+
+    final currentDate = DateTime.now();
+    final weekStart = DateTime(
+      currentDate.year,
+      currentDate.month,
+      currentDate.day,
+    ).subtract(Duration(days: currentDate.weekday - 1));
+
+    final weekStartMs = weekStart.millisecondsSinceEpoch;
+
+    final isCurrentWeek = (student?.weeklyStatsStartedAtMs ?? 0) >= weekStartMs;
+
+    final baseWeekly = isCurrentWeek ? (student?.weeklyProgress ?? 0.0) : 0.0;
+    final baseTime = isCurrentWeek ? (student?.timeSpentMinThisWeek ?? 0) : 0;
+    final baseVoice = isCurrentWeek ? (student?.voiceUsagePct ?? 0) : 0;
+
+    final newWeekly = (baseWeekly + 0.05).clamp(0.0, 1.0);
+    final newTime = baseTime + 7;
+    final newVoice = (baseVoice + 2).clamp(0, 100);
+
+    final newEngagement = newTime >= 35 || newWeekly >= 0.50
+        ? 'High'
+        : newTime >= 14 || newWeekly >= 0.20
+            ? 'Moderate'
+            : 'Building';
 
     await db.doc('students/${widget.studentId}').update({
       'readingLevel': newLevel,
       'weeklyProgress': newWeekly,
       'timeSpentMinThisWeek': newTime,
       'voiceUsagePct': newVoice,
+      'engagement': newEngagement,
+      'weeklyStatsStartedAtMs': weekStartMs,
       'preferredMode': 'Voice',
+      'skillTrends.${_goalSkillName(_activeGoal)}':
+          _trendFromAccuracy(accuracy),
       'updatedAtMs': now,
     });
 
@@ -156,7 +188,27 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final studentAsync = ref.watch(studentDocProvider(widget.studentId));
+    final latestGoal = studentAsync.asData?.value?.todayGoal;
+
+    if (!_loading &&
+        latestGoal != null &&
+        latestGoal.isNotEmpty &&
+        latestGoal != _activeGoal) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _load();
+        }
+      });
+    }
+
     if (_loading) return const Center(child: CircularProgressIndicator());
+
+    if (_items.isEmpty) {
+      return const Center(
+        child: Text('No practice items are available for this goal.'),
+      );
+    }
 
     final item = _items[_idx];
 
@@ -168,19 +220,32 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
           const Text('Practice',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
           const SizedBox(height: 4),
-          const Text('Build confidence',
-              style: TextStyle(color: AppColors.textMuted)),
+          Text(
+            _activeGoal,
+            style: const TextStyle(
+              color: AppColors.indigo,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Practice for today' 's goal',
+            style: TextStyle(color: AppColors.textMuted),
+          ),
           const SizedBox(height: 14),
           AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  children: const [
+                  children: [
                     Icon(Icons.menu_book_rounded, color: AppColors.indigo),
                     SizedBox(width: 10),
-                    Text('Read this sentence:',
-                        style: TextStyle(fontWeight: FontWeight.w800)),
+                    Text(
+                        _activeGoal.toLowerCase().contains('spell')
+                            ? 'Choose the correctly spelled word:'
+                            : 'Read this sentence:',
+                        style: const TextStyle(fontWeight: FontWeight.w800)),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -199,7 +264,11 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
                 Text(item.question,
                     style: const TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 10),
-                _AnswerGrid(onPick: _answer, ideal: item.ideal),
+                _AnswerGrid(
+                  onPick: _answer,
+                  ideal: item.ideal,
+                  goal: _activeGoal,
+                ),
               ],
             ),
           ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.04, end: 0),
@@ -211,37 +280,79 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
     );
   }
 
+  String _goalSkillName(String goal) {
+    final g = goal.toLowerCase();
+
+    if (g.contains('spell')) return 'Spelling';
+
+    if (g.contains('vocabulary') || g.contains('context clue')) {
+      return 'Vocabulary';
+    }
+
+    if (g.contains('main idea')) return 'Main Idea';
+
+    if (g.contains('inference') || g.contains('infer')) {
+      return 'Inference';
+    }
+
+    return 'Comprehension';
+  }
+
+  String _trendFromAccuracy(int accuracy) {
+    if (accuracy >= 95) return 'Strong';
+    if (accuracy >= 80) return 'Improving';
+    return 'Needs work';
+  }
+
   bool _softMatch(String choice, String ideal) {
+    final cleanChoice = choice.trim().toLowerCase();
+    final cleanIdeal = ideal.trim().toLowerCase();
+
+    if (!cleanIdeal.contains(' ')) {
+      return cleanChoice == cleanIdeal;
+    }
+
     final words =
-        choice.split(RegExp(r'\W+')).where((w) => w.length >= 4).toSet();
+        cleanChoice.split(RegExp(r'\W+')).where((w) => w.length >= 4).toSet();
     final idealWords =
-        ideal.split(RegExp(r'\W+')).where((w) => w.length >= 4).toSet();
+        cleanIdeal.split(RegExp(r'\W+')).where((w) => w.length >= 4).toSet();
     final overlap = words.intersection(idealWords).length;
-    return overlap >= 2 || (choice.length > 10 && ideal.contains(choice));
+
+    return overlap >= 2 ||
+        (cleanChoice.length > 10 && cleanIdeal.contains(cleanChoice));
   }
 
   String _hint(String ideal) {
-    // Short hint from first clause
     final parts = ideal.split('.');
     final h = parts.first.trim();
-    return h.length > 70 ? '${h.substring(0, 70)}…' : h;
+    return h.length > 70 ? '${h.substring(0, 70)}...' : h;
   }
 }
 
 class _AnswerGrid extends StatelessWidget {
-  const _AnswerGrid({required this.onPick, required this.ideal});
+  const _AnswerGrid({
+    required this.onPick,
+    required this.ideal,
+    required this.goal,
+  });
+
   final Future<void> Function(String) onPick;
   final String ideal;
+  final String goal;
 
   @override
   Widget build(BuildContext context) {
-    // Generate gentle choices with one ideal-ish and three safe distractors
-    final choices = <String>[
-      ideal,
-      'Something about a person doing an action.',
-      'Something about an object or place.',
-      'It describes what happened in the sentence.',
-    ];
+    final normalizedGoal = goal.toLowerCase();
+
+    final choices =
+        normalizedGoal.contains('spelling') || normalizedGoal.contains('spell')
+            ? _spellingChoices(ideal)
+            : <String>[
+                ideal,
+                'Something about a person doing an action.',
+                'Something about an object or place.',
+                'It describes what happened in the sentence.',
+              ];
 
     return Column(
       children: [
@@ -257,5 +368,80 @@ class _AnswerGrid extends StatelessWidget {
           ),
       ],
     );
+  }
+
+  List<String> _spellingChoices(String answer) {
+    final word = answer.trim().toLowerCase();
+
+    const choices = <String, List<String>>{
+      'beautiful': [
+        'beautiful',
+        'beautifull',
+        'beutiful',
+        'beautifal',
+      ],
+      'because': [
+        'because',
+        'becuase',
+        'beacuse',
+        'becouse',
+      ],
+      'different': [
+        'different',
+        'diffrent',
+        'diferent',
+        'differant',
+      ],
+      'favorite': [
+        'favorite',
+        'faverite',
+        'favorit',
+        'favrite',
+      ],
+      'remember': [
+        'remember',
+        'remeber',
+        'remmember',
+        'remebmer',
+      ],
+      'necessary': [
+        'necessary',
+        'neccessary',
+        'necessery',
+        'nesessary',
+      ],
+      'separate': [
+        'separate',
+        'seperate',
+        'seperete',
+        'separete',
+      ],
+      'environment': [
+        'environment',
+        'enviroment',
+        'envirnment',
+        'environmentt',
+      ],
+      'beginning': [
+        'beginning',
+        'begining',
+        'beggining',
+        'beginnning',
+      ],
+      'knowledge': [
+        'knowledge',
+        'knowlege',
+        'knowledje',
+        'knowladge',
+      ],
+    };
+
+    return choices[word] ??
+        <String>[
+          word,
+          '${word}e',
+          '${word}s',
+          '${word}t',
+        ];
   }
 }

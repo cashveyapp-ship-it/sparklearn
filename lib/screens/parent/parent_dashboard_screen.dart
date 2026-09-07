@@ -1,19 +1,73 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/firebase_providers.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/app_card.dart';
 import '../../providers/user_profile_provider.dart';
 import '../../providers/student_provider.dart';
 import '../../services/link_student_service.dart';
 
-class ParentDashboardScreen extends ConsumerWidget {
+class ParentDashboardScreen extends ConsumerStatefulWidget {
   const ParentDashboardScreen({super.key, required this.parentUid});
   final String parentUid;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  @override
+  ConsumerState<ParentDashboardScreen> createState() =>
+      _ParentDashboardScreenState();
+}
+
+class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
+  String? _selectedStudentId;
+
+  @override
+  Widget build(BuildContext context) {
     final profile = ref.watch(userProfileProvider).asData?.value;
     final linked = profile?.linkedStudentIds ?? const [];
+    if (linked.isNotEmpty &&
+        (_selectedStudentId == null || !linked.contains(_selectedStudentId))) {
+      _selectedStudentId = linked.first;
+    }
+    final liveUser = ref.watch(firebaseAuthProvider).currentUser;
+    debugPrint(
+        '[ParentDashboard] liveAuthUid=${liveUser?.uid} widget.parentUid=$widget.parentUid');
+
+    Future.microtask(() async {
+      final db = ref.read(firestoreProvider);
+
+      try {
+        final parentSnap = await db
+            .doc('users/${liveUser?.uid}')
+            .get(const GetOptions(source: Source.server));
+
+        final serverLinked =
+            (parentSnap.data()?['linkedStudentIds'] as List?)?.cast<String>() ??
+                const <String>[];
+
+        debugPrint(
+            '[ParentDashboard] parentServerRead exists=${parentSnap.exists} serverLinked=$serverLinked');
+
+        if (serverLinked.isNotEmpty) {
+          final serverStudentId = serverLinked.first;
+
+          try {
+            final studentSnap = await db
+                .doc('students/$serverStudentId')
+                .get(const GetOptions(source: Source.server));
+
+            debugPrint(
+                '[ParentDashboard] studentServerRead id=$serverStudentId exists=${studentSnap.exists}');
+          } catch (e) {
+            debugPrint('[ParentDashboard] studentServerRead ERROR=$e');
+          }
+        }
+      } catch (e) {
+        debugPrint('[ParentDashboard] parentServerRead ERROR=$e');
+      }
+    });
+    debugPrint(
+        '[ParentDashboard] widget.parentUid=$widget.parentUid linked=$linked');
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(18),
@@ -25,17 +79,48 @@ class ParentDashboardScreen extends ConsumerWidget {
           const SizedBox(height: 4),
           const Text('This week', style: TextStyle(color: AppColors.textMuted)),
           const SizedBox(height: 14),
-          if (linked.isEmpty)
-            _LinkCard(parentUid: parentUid)
-          else
-            _StudentDashboard(studentId: linked.first),
+          _LinkCard(parentUid: widget.parentUid),
+          if (linked.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            const Text(
+              'Viewing student',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textMuted,
+              ),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _selectedStudentId,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+              ),
+              items: linked
+                  .map(
+                    (studentId) => DropdownMenuItem<String>(
+                      value: studentId,
+                      child: Text(studentId),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _selectedStudentId = value);
+              },
+            ),
+            const SizedBox(height: 18),
+            if (_selectedStudentId != null)
+              _StudentDashboard(studentId: _selectedStudentId!),
+          ],
         ],
       ),
     );
   }
 }
 
-// ── Link card ────────────────────────────────────────────────────────────────
+// Link card
 
 class _LinkCard extends ConsumerStatefulWidget {
   const _LinkCard({required this.parentUid});
@@ -70,12 +155,11 @@ class _LinkCardState extends ConsumerState<_LinkCard> {
       await ref.read(linkStudentServiceProvider).linkStudentByEmail(email);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Student linked successfully! 🎉')),
+          const SnackBar(content: Text('Student linked successfully!')),
         );
       }
     } on LinkStudentException catch (e) {
-      // ✅ Show the specific reason (not found, already linked, etc.)
+      // Show the specific reason.
       setState(() => _err = e.message);
     } catch (_) {
       setState(() => _err = 'Could not link. Please try again.');
@@ -128,7 +212,7 @@ class _LinkCardState extends ConsumerState<_LinkCard> {
                           strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.link_rounded),
-              label: Text(_loading ? 'Linking…' : 'Link Student'),
+              label: Text(_loading ? 'Linking...' : 'Link Student'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.indigo,
                 foregroundColor: Colors.white,
@@ -145,7 +229,7 @@ class _LinkCardState extends ConsumerState<_LinkCard> {
   }
 }
 
-// ── Student dashboard ─────────────────────────────────────────────────────────
+// Student dashboard
 
 class _StudentDashboard extends ConsumerWidget {
   const _StudentDashboard({required this.studentId});
@@ -153,8 +237,45 @@ class _StudentDashboard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(studentDocProvider(studentId)).asData?.value;
-    if (s == null) return const Center(child: CircularProgressIndicator());
+    final studentAsync = ref.watch(studentDocProvider(studentId));
+    debugPrint('[ParentDashboard] studentId=$studentId');
+
+    if (studentAsync.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (studentAsync.hasError) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          'Student data error: ${studentAsync.error}',
+          style: const TextStyle(color: Colors.red),
+        ),
+      );
+    }
+
+    final s = studentAsync.value;
+
+    if (s == null) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('Linked student record was not found.'),
+      );
+    }
+
+    final currentDate = DateTime.now();
+    final weekStart = DateTime(
+      currentDate.year,
+      currentDate.month,
+      currentDate.day,
+    ).subtract(Duration(days: currentDate.weekday - 1));
+
+    final isCurrentWeek =
+        s.weeklyStatsStartedAtMs >= weekStart.millisecondsSinceEpoch;
+
+    final displayTimeThisWeek = isCurrentWeek ? s.timeSpentMinThisWeek : 0;
+    final displayVoiceUsage = isCurrentWeek ? s.voiceUsagePct : 0;
+    final displayEngagement = isCurrentWeek ? s.engagement : 'Building';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -170,14 +291,13 @@ class _StudentDashboard extends ConsumerWidget {
                 child: _statCard(
                     icon: Icons.trending_up_rounded,
                     label: 'Reading Level',
-                    value: s.readingLevel.toStringAsFixed(1),
-                    subtitle: '↑ from 3.9')),
+                    value: s.readingLevel.toStringAsFixed(1))),
             const SizedBox(width: 12),
             Expanded(
                 child: _statCard(
                     icon: Icons.schedule,
                     label: 'Time Spent',
-                    value: '${s.timeSpentMinThisWeek} min')),
+                    value: '$displayTimeThisWeek min')),
           ],
         ),
         const SizedBox(height: 12),
@@ -187,13 +307,13 @@ class _StudentDashboard extends ConsumerWidget {
                 child: _statCard(
                     icon: Icons.mic_rounded,
                     label: 'Voice Usage',
-                    value: '${s.voiceUsagePct}%')),
+                    value: '$displayVoiceUsage%')),
             const SizedBox(width: 12),
             Expanded(
                 child: _statCard(
                     icon: Icons.favorite_rounded,
                     label: 'Engagement',
-                    value: s.engagement)),
+                    value: displayEngagement)),
           ],
         ),
         const SizedBox(height: 14),
@@ -201,7 +321,7 @@ class _StudentDashboard extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('📊 Skill Trends',
+              const Text('Skill Trends',
                   style: TextStyle(fontWeight: FontWeight.w900)),
               const SizedBox(height: 10),
               for (final e in s.skillTrends.entries)
@@ -283,7 +403,7 @@ class _StudentDashboard extends ConsumerWidget {
             height: 44,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              color: AppColors.indigo.withOpacity(0.10),
+              color: AppColors.indigo.withValues(alpha: 0.10),
             ),
             child: Icon(icon, color: AppColors.indigo),
           ),

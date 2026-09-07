@@ -1,5 +1,6 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class SubscriptionService {
   SubscriptionService._();
@@ -10,6 +11,7 @@ class SubscriptionService {
   static const String yearlyId = 'sparklearn_premium_yearly';
 
   final InAppPurchase _iap = InAppPurchase.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
   StreamSubscription<List<PurchaseDetails>>? _subscription;
 
@@ -68,7 +70,14 @@ class SubscriptionService {
     for (final purchase in purchaseDetailsList) {
       if (purchase.status == PurchaseStatus.purchased ||
           purchase.status == PurchaseStatus.restored) {
-        // Premium entitlement handling will be connected here.
+        final callable = _functions.httpsCallable('verifyPremiumPurchase');
+
+        await callable.call({
+          'productId': purchase.productID,
+          'purchaseId': purchase.purchaseID,
+          'source': purchase.verificationData.source,
+          'verificationData': purchase.verificationData.serverVerificationData,
+        });
       }
 
       if (purchase.pendingCompletePurchase) {
@@ -81,3 +90,4 @@ class SubscriptionService {
     _subscription?.cancel();
   }
 }
+

@@ -49,7 +49,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
         'weeklyProgress': 0.0,
         'timeSpentMinThisWeek': 0,
         'voiceUsagePct': 0,
-        'engagement': 'High',
+        'engagement': 'Building',
         'skillTrends': {
           'Comprehension': 'Improving',
           'Vocabulary': 'Improving',
@@ -94,7 +94,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
         ),
       ),
       data: (s) {
-        // âœ… Student doc missing: create it (once) and show a clear setup state
+        // Student doc missing: create it once and show a clear setup state
         if (s == null) {
           _ensureStudentDocExists();
 
@@ -123,15 +123,29 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
           );
         }
 
-        // âœ… Normal UI (your original screen)
+        // Normal UI
         final greeting = _greeting();
+
+        final currentDate = DateTime.now();
+        final weekStart = DateTime(
+          currentDate.year,
+          currentDate.month,
+          currentDate.day,
+        ).subtract(Duration(days: currentDate.weekday - 1));
+
+        final isCurrentWeek =
+            s.weeklyStatsStartedAtMs >= weekStart.millisecondsSinceEpoch;
+
+        final displayWeeklyProgress = isCurrentWeek ? s.weeklyProgress : 0.0;
+        final displayTimeThisWeek = isCurrentWeek ? s.timeSpentMinThisWeek : 0;
+        final displayVoiceUsage = isCurrentWeek ? s.voiceUsagePct : 0;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Good $greeting ðŸ‘‹',
+              Text('Good $greeting',
                   style: const TextStyle(color: AppColors.textMuted)),
               const SizedBox(height: 4),
               Text('Hi, ${s.name}',
@@ -184,12 +198,12 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
                                   color: AppColors.textMuted,
                                   fontWeight: FontWeight.w700)),
                           SizedBox(height: 4),
-                          Text('Keep going â€” small steps count.',
+                          Text('Keep going - small steps count.',
                               style: TextStyle(color: AppColors.textMuted)),
                         ],
                       ),
                     ),
-                    ProgressRing(progress: s.weeklyProgress),
+                    ProgressRing(progress: displayWeeklyProgress),
                   ],
                 ),
               ),
@@ -214,13 +228,13 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
                       child: _statCard(
                           icon: Icons.timer_outlined,
                           label: 'Time This Week',
-                          value: '${s.timeSpentMinThisWeek} min')),
+                          value: '$displayTimeThisWeek min')),
                   const SizedBox(width: 10),
                   Expanded(
                       child: _statCard(
                           icon: Icons.record_voice_over_outlined,
                           label: 'Voice Usage',
-                          value: '${s.voiceUsagePct}%')),
+                          value: '$displayVoiceUsage%')),
                 ],
               ),
               const SizedBox(height: 10),
@@ -230,7 +244,7 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
                       child: _statCard(
                           icon: Icons.trending_up_outlined,
                           label: 'Engagement',
-                          value: s.engagement)),
+                          value: isCurrentWeek ? s.engagement : 'Building')),
                   const SizedBox(width: 10),
                   Expanded(
                       child: _statCard(

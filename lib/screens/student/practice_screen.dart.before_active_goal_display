@@ -1,0 +1,265 @@
+import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/widgets/app_card.dart';
+import '../../core/widgets/app_button.dart';
+import '../../providers/firebase_providers.dart';
+import '../../providers/student_provider.dart';
+import '../../services/practice_repository.dart';
+import '../../services/adaptive_difficulty.dart';
+import 'celebration_screen.dart';
+import 'package:uuid/uuid.dart';
+
+class PracticeScreen extends ConsumerStatefulWidget {
+  const PracticeScreen({super.key, required this.studentId});
+  final String studentId;
+
+  @override
+  ConsumerState<PracticeScreen> createState() => _PracticeScreenState();
+}
+
+class _PracticeScreenState extends ConsumerState<PracticeScreen> {
+  final _repo = PracticeRepository();
+  int _bucket = 3;
+  int _idx = 0;
+  int _correct = 0;
+  int _total = 0;
+  bool _loading = true;
+
+  List<PracticeItem> _items = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final student =
+        ref.read(studentDocProvider(widget.studentId)).asData?.value;
+    final level = student?.readingLevel ?? 3.9;
+    final goal = student?.todayGoal ?? 'Reading: Understanding paragraphs';
+    _bucket = level.round().clamp(3, 4);
+    _items = await _repo.loadReadingItems(
+      _bucket,
+      goal: goal,
+    );
+    _idx = 0;
+    _correct = 0;
+    _total = 0;
+    setState(() => _loading = false);
+  }
+
+  Future<void> _answer(String choice) async {
+    final item = _items[_idx];
+    _total += 1;
+
+    // Gentle evaluation: check for keyword overlap
+    final c = choice.toLowerCase();
+    final ideal = item.ideal.toLowerCase();
+    final ok = _softMatch(c, ideal);
+
+    if (ok) _correct += 1;
+
+    final feedback = ok
+        ? 'Nice work â€” that\'s right.'
+        : 'Good try. A gentle hint: ${_hint(ideal)}';
+
+    // Show snack (no red X)
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(feedback),
+        backgroundColor: ok ? AppColors.green : AppColors.indigo,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    await Future.delayed(600.ms);
+
+    if (!mounted) return;
+
+    if (_idx < _items.length - 1) {
+      setState(() => _idx += 1);
+    } else {
+      await _finishSession();
+    }
+  }
+
+  Future<void> _finishSession() async {
+    final accuracy = (_correct / max(1, _total) * 100).round();
+
+    final student =
+        ref.read(studentDocProvider(widget.studentId)).asData?.value;
+    final currentBucket = (student?.readingLevel ?? 3.9).round().clamp(3, 6);
+    final nextBucket = nextReadingLevelBucket(
+        currentBucket: currentBucket, lastAccuracyPct: accuracy);
+
+    final levelDelta = nextBucket == currentBucket
+        ? 0.0
+        : (nextBucket > currentBucket ? 0.2 : -0.2);
+
+    final improvements = <String>[];
+    if (accuracy >= 80) improvements.add('Reading accuracy improved');
+    improvements.add('Faster responses');
+    improvements.add('More confidence');
+
+    final db = ref.read(firestoreProvider);
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final sessionId = const Uuid().v4();
+
+    // Write session
+    await db
+        .collection('students')
+        .doc(widget.studentId)
+        .collection('sessions')
+        .doc(sessionId)
+        .set({
+      'id': sessionId,
+      'createdAt': now,
+      'durationMin': 7,
+      'mode': 'voice',
+      'accuracyPct': accuracy,
+      'levelDelta': levelDelta,
+      'improvements': improvements,
+    });
+
+    // Update student stats
+    final newLevel =
+        ((student?.readingLevel ?? 3.9) + levelDelta).clamp(1.0, 12.0);
+    final newWeekly = ((student?.weeklyProgress ?? 0.0) + 0.05).clamp(0.0, 1.0);
+    final newTime = (student?.timeSpentMinThisWeek ?? 0) + 7;
+    final newVoice = ((student?.voiceUsagePct ?? 0) + 2).clamp(0, 100);
+
+    await db.doc('students/${widget.studentId}').update({
+      'readingLevel': newLevel,
+      'weeklyProgress': newWeekly,
+      'timeSpentMinThisWeek': newTime,
+      'voiceUsagePct': newVoice,
+      'preferredMode': 'Voice',
+      'updatedAtMs': now,
+    });
+
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CelebrationScreen(
+          improvements: improvements,
+          levelDelta: levelDelta,
+        ),
+      ),
+    );
+
+    // Reload items for next time
+    await Future.delayed(300.ms);
+    if (mounted) await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+
+    final item = _items[_idx];
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Practice',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 4),
+          const Text('Build confidence',
+              style: TextStyle(color: AppColors.textMuted)),
+          const SizedBox(height: 14),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: const [
+                    Icon(Icons.menu_book_rounded, color: AppColors.indigo),
+                    SizedBox(width: 10),
+                    Text('Read this sentence:',
+                        style: TextStyle(fontWeight: FontWeight.w800)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    color: AppColors.indigo.withOpacity(0.08),
+                  ),
+                  child: Text('"${item.sentence}"',
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(height: 14),
+                Text(item.question,
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 10),
+                _AnswerGrid(onPick: _answer, ideal: item.ideal),
+              ],
+            ),
+          ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.04, end: 0),
+          const SizedBox(height: 10),
+          Text('Question ${_idx + 1} of ${_items.length}',
+              style: const TextStyle(color: AppColors.textMuted)),
+        ],
+      ),
+    );
+  }
+
+  bool _softMatch(String choice, String ideal) {
+    final words =
+        choice.split(RegExp(r'\W+')).where((w) => w.length >= 4).toSet();
+    final idealWords =
+        ideal.split(RegExp(r'\W+')).where((w) => w.length >= 4).toSet();
+    final overlap = words.intersection(idealWords).length;
+    return overlap >= 2 || (choice.length > 10 && ideal.contains(choice));
+  }
+
+  String _hint(String ideal) {
+    // Short hint from first clause
+    final parts = ideal.split('.');
+    final h = parts.first.trim();
+    return h.length > 70 ? '${h.substring(0, 70)}â€¦' : h;
+  }
+}
+
+class _AnswerGrid extends StatelessWidget {
+  const _AnswerGrid({required this.onPick, required this.ideal});
+  final Future<void> Function(String) onPick;
+  final String ideal;
+
+  @override
+  Widget build(BuildContext context) {
+    // Generate gentle choices with one ideal-ish and three safe distractors
+    final choices = <String>[
+      ideal,
+      'Something about a person doing an action.',
+      'Something about an object or place.',
+      'It describes what happened in the sentence.',
+    ];
+
+    return Column(
+      children: [
+        for (final c in choices)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: AppButton(
+              label: c,
+              icon: Icons.check_circle_outline,
+              isPrimary: false,
+              onPressed: () => onPick(c),
+            ),
+          ),
+      ],
+    );
+  }
+}

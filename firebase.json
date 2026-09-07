@@ -1,1 +1,29 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"com-example-sparklearn","appId":"1:908629088749:android:3dd282f34dc80bdf9a2fe4","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"com-example-sparklearn","configurations":{"android":"1:908629088749:android:3dd282f34dc80bdf9a2fe4","ios":"1:908629088749:ios:b8c8bdf2920b90d79a2fe4","macos":"1:908629088749:ios:b8c8bdf2920b90d79a2fe4","web":"1:908629088749:web:15498d02773ac1089a2fe4","windows":"1:908629088749:web:fe3e4164094f84909a2fe4"}}}}}}
+﻿{
+    "flutter":  {
+                    "platforms":  {
+                                      "android":  {
+                                                      "default":  {
+                                                                      "projectId":  "com-example-sparklearn",
+                                                                      "appId":  "1:908629088749:android:3dd282f34dc80bdf9a2fe4",
+                                                                      "fileOutput":  "android/app/google-services.json"
+                                                                  }
+                                                  },
+                                      "dart":  {
+                                                   "lib/firebase_options.dart":  {
+                                                                                     "projectId":  "com-example-sparklearn",
+                                                                                     "configurations":  {
+                                                                                                            "android":  "1:908629088749:android:3dd282f34dc80bdf9a2fe4",
+                                                                                                            "ios":  "1:908629088749:ios:b8c8bdf2920b90d79a2fe4",
+                                                                                                            "macos":  "1:908629088749:ios:b8c8bdf2920b90d79a2fe4",
+                                                                                                            "web":  "1:908629088749:web:15498d02773ac1089a2fe4",
+                                                                                                            "windows":  "1:908629088749:web:fe3e4164094f84909a2fe4"
+                                                                                                        }
+                                                                                 }
+                                               }
+                                  }
+                },
+    "functions":  {
+                      "source":  "functions",
+                      "runtime":  "nodejs22"
+                  }
+}

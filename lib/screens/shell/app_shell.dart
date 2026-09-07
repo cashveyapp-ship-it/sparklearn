@@ -229,7 +229,7 @@ class _RolePickerScreenState extends ConsumerState<_RolePickerScreen> {
         const Duration(seconds: 8),
         onTimeout: () => throw Exception(
             'Firestore timeout.\n\nFix in Firebase Console:\n'
-            'Firestore â†’ Rules â†’ allow read, write: if request.auth != null'),
+            'Firestore -> Rules -> allow read, write: if request.auth != null'),
       );
 
       if (role == 'student') {
@@ -286,9 +286,9 @@ class _RolePickerScreenState extends ConsumerState<_RolePickerScreen> {
               if (_loading)
                 const CircularProgressIndicator()
               else ...[
-                _btn('student', 'ðŸŽ“  I am a Student'),
+                _btn('student', 'I am a Student'),
                 const SizedBox(height: 16),
-                _btn('parent', 'ðŸ‘¨â€ðŸ‘©â€ðŸ‘§  I am a Parent'),
+                _btn('parent', 'I am a Parent'),
               ],
               if (_err != null) ...[
                 const SizedBox(height: 16),

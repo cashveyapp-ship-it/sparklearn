@@ -1,0 +1,104 @@
+/// A reading practice item shown to the student.
+class PracticeItem {
+  const PracticeItem({
+    required this.sentence,
+    required this.question,
+    required this.ideal,
+  });
+
+  /// The passage/sentence the student reads.
+  final String sentence;
+
+  /// The comprehension question asked.
+  final String question;
+
+  /// The ideal answer (used for soft-match scoring).
+  final String ideal;
+}
+
+/// Provides reading comprehension items grouped by reading level bucket.
+class PracticeRepository {
+  /// Loads items for the given reading-level [bucket] (3 or 4).
+  Future<List<PracticeItem>> loadReadingItems(int bucket) async {
+    // Simulate a short async load (would be a Firestore fetch in production)
+    await Future.delayed(const Duration(milliseconds: 80));
+    return bucket <= 3 ? _bucket3 : _bucket4;
+  }
+}
+
+// Grade 3 items
+
+const _bucket3 = <PracticeItem>[
+  PracticeItem(
+    sentence:
+        'The little turtle moved slowly across the sandy beach toward the bright blue ocean.',
+    question: 'Where is the turtle going?',
+    ideal: 'The turtle is going toward the ocean or the water.',
+  ),
+  PracticeItem(
+    sentence:
+        'Maya loved rainy days because she could curl up with a warm blanket and read her favorite books.',
+    question: 'What does Maya like to do on rainy days?',
+    ideal: 'Maya likes to curl up with a blanket and read books.',
+  ),
+  PracticeItem(
+    sentence:
+        'The baker woke up at five in the morning to make fresh bread before the shop opened.',
+    question: 'Why did the baker wake up so early?',
+    ideal:
+        'The baker woke up early to make fresh bread before the shop opened.',
+  ),
+  PracticeItem(
+    sentence:
+        'Sam found a small bird with an injured wing sitting under the old oak tree.',
+    question: 'What was wrong with the bird Sam found?',
+    ideal: 'The bird had an injured or hurt wing.',
+  ),
+  PracticeItem(
+    sentence:
+        'The children cheered loudly when the coach said they had won the championship.',
+    question: 'Why did the children cheer?',
+    ideal: 'They cheered because they won the championship.',
+  ),
+];
+
+// Grade 4 items
+
+const _bucket4 = <PracticeItem>[
+  PracticeItem(
+    sentence:
+        'Despite the heavy rain, the rescue team continued searching through the night because every minute counted.',
+    question: 'Why did the rescue team keep searching even in the rain?',
+    ideal:
+        'They continued searching because every minute was important and someone needed to be rescued.',
+  ),
+  PracticeItem(
+    sentence:
+        'The scientist carefully recorded every measurement in her notebook so that other researchers could repeat the experiment.',
+    question: 'Why did the scientist write down every measurement?',
+    ideal:
+        'She recorded the measurements so other researchers could repeat or replicate the experiment.',
+  ),
+  PracticeItem(
+    sentence:
+        'When the old library was threatened with demolition, students organized a petition that collected over two thousand signatures.',
+    question: 'What did the students do to protect the library?',
+    ideal:
+        'The students organized a petition and collected over two thousand signatures.',
+  ),
+  PracticeItem(
+    sentence:
+        'Amara practiced her speech every evening for a week, yet still felt nervous when she finally stood in front of the crowd.',
+    question:
+        'How did Amara feel during her speech, and why is that surprising?',
+    ideal:
+        'She felt nervous even though she had practiced a lot every evening for a week.',
+  ),
+  PracticeItem(
+    sentence:
+        'The ancient map contained symbols that no one had been able to decode for centuries, until a young archaeologist noticed a pattern.',
+    question: 'What made the young archaeologist important to this story?',
+    ideal:
+        'The archaeologist noticed a pattern and was finally able to decode the symbols that had puzzled people for centuries.',
+  ),
+];

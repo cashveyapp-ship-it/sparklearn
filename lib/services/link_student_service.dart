@@ -32,7 +32,7 @@ class LinkStudentService {
 
     String? studentUid;
 
-    // ── Search users collection ───────────────────────────────────────────
+    // Search users collection
     studentUid ??= await _searchUsers('email', emailLower);
     studentUid ??= await _searchUsers('email', emailOriginal);
     studentUid ??= await _searchUsers('email', emailCapital);
@@ -40,10 +40,9 @@ class LinkStudentService {
     studentUid ??= await _searchUsers('name', emailOriginal);
     studentUid ??= await _searchUsers('name', emailCapital);
 
-    // ── Search students collection (fallback) ─────────────────────────────
+    // Search students collection (fallback)
     if (studentUid == null) {
-      debugPrint(
-          '[LinkStudent] Not in users — checking students collection');
+      debugPrint('[LinkStudent] Not in users - checking students collection');
       studentUid ??= await _searchStudents('email', emailLower);
       studentUid ??= await _searchStudents('email', emailOriginal);
       studentUid ??= await _searchStudents('email', emailCapital);
@@ -64,12 +63,7 @@ class LinkStudentService {
       throw const LinkStudentException('You cannot link your own account.');
     }
 
-    // Verify students doc exists
-    final studentDoc = await _db.doc('students/$studentUid').get();
-    if (!studentDoc.exists) {
-      throw const LinkStudentException(
-          'Student profile not found. Ask the student to open the app once first.');
-    }
+    // Student account was verified from the users collection.
 
     // Check not already linked
     final pSnap = await _db.doc('users/${parent.uid}').get();
@@ -80,62 +74,37 @@ class LinkStudentService {
           'This student is already linked to your account.');
     }
 
-    // Write bidirectional link
+    // Link student to parent profile
     final uid = studentUid;
-    await _db.runTransaction((tx) async {
-      final pRef = _db.doc('users/${parent.uid}');
-      final sRef = _db.doc('students/$uid');
-
-      final pData = (await tx.get(pRef)).data() ?? {};
-      final sData = (await tx.get(sRef)).data() ?? {};
-
-      final linked = (pData['linkedStudentIds'] as List?)?.cast<String>() ?? [];
-      final parentUids = (sData['parentUids'] as List?)?.cast<String>() ?? [];
-
-      if (!linked.contains(uid)) linked.add(uid);
-      if (!parentUids.contains(parent.uid)) parentUids.add(parent.uid);
-
-      tx.update(pRef, {'linkedStudentIds': linked});
-      tx.update(sRef, {'parentUids': parentUids});
+    await _db.doc('users/${parent.uid}').update({
+      'linkedStudentIds': FieldValue.arrayUnion([uid]),
     });
 
-    debugPrint('[LinkStudent] ✅ Linked $uid to ${parent.uid}');
+    debugPrint('[LinkStudent] Linked $uid to ${parent.uid}');
   }
 
   Future<void> unlinkStudent(String studentUid) async {
     final parent = _auth.currentUser;
     if (parent == null) throw const LinkStudentException('Not signed in.');
 
-    await _db.runTransaction((tx) async {
-      final pRef = _db.doc('users/${parent.uid}');
-      final sRef = _db.doc('students/$studentUid');
-
-      final pData = (await tx.get(pRef)).data() ?? {};
-      final sData = (await tx.get(sRef)).data() ?? {};
-
-      final linked = (pData['linkedStudentIds'] as List?)?.cast<String>() ?? [];
-      final parentUids = (sData['parentUids'] as List?)?.cast<String>() ?? [];
-
-      linked.remove(studentUid);
-      parentUids.remove(parent.uid);
-
-      tx.update(pRef, {'linkedStudentIds': linked});
-      tx.update(sRef, {'parentUids': parentUids});
+    await _db.doc('users/${parent.uid}').update({
+      'linkedStudentIds': FieldValue.arrayRemove([studentUid]),
     });
-    debugPrint('[LinkStudent] ✅ Unlinked $studentUid');
+
+    debugPrint('[LinkStudent] Unlinked $studentUid');
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // Helpers
 
   Future<String?> _searchUsers(String field, String value) async {
     try {
       final q = await _db
           .collection('users')
+          .where('role', isEqualTo: 'student')
           .where(field, isEqualTo: value)
           .limit(1)
           .get();
-      debugPrint(
-          '[LinkStudent] users.$field=$value → ${q.docs.length} docs');
+      debugPrint('[LinkStudent] users.$field=$value -> ${q.docs.length} docs');
       if (q.docs.isEmpty) return null;
       final role = q.docs.first.data()['role'] as String?;
       return role == 'student' ? q.docs.first.id : null;
@@ -152,7 +121,7 @@ class LinkStudentService {
           .limit(1)
           .get();
       debugPrint(
-          '[LinkStudent] students.$field=$value → ${q.docs.length} docs');
+          '[LinkStudent] students.$field=$value -> ${q.docs.length} docs');
       return q.docs.isEmpty ? null : q.docs.first.id;
     } catch (_) {
       return null;

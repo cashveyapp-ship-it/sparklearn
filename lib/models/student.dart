@@ -11,6 +11,7 @@ class Student {
     required this.parentUids,
     required this.preferredMode,
     this.todayGoal = 'Reading: Understanding paragraphs',
+    this.weeklyStatsStartedAtMs = 0,
     required this.updatedAtMs,
   });
 
@@ -25,6 +26,7 @@ class Student {
   final List<String> parentUids;
   final String preferredMode; // Voice/Text
   final String todayGoal;
+  final int weeklyStatsStartedAtMs;
   final int updatedAtMs;
 
   Map<String, dynamic> toMap() => {
@@ -39,6 +41,7 @@ class Student {
         'parentUids': parentUids,
         'preferredMode': preferredMode,
         'todayGoal': todayGoal,
+        'weeklyStatsStartedAtMs': weeklyStatsStartedAtMs,
         'updatedAtMs': updatedAtMs,
       };
 
@@ -57,6 +60,7 @@ class Student {
         preferredMode: (m['preferredMode'] ?? 'Voice') as String,
         todayGoal:
             (m['todayGoal'] ?? 'Reading: Understanding paragraphs') as String,
+        weeklyStatsStartedAtMs: (m['weeklyStatsStartedAtMs'] ?? 0) as int,
         updatedAtMs: (m['updatedAtMs'] ?? 0) as int,
       );
 }

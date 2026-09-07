@@ -223,7 +223,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Parents can link to a student account from inside the app using the studentÃ¢â‚¬â„¢s email.',
+                'Parents can link to a student account from inside the app using the student'
+                's email.',
                 style: TextStyle(color: AppColors.textMuted),
               ),
             ],

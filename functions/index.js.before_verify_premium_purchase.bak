@@ -1,0 +1,39 @@
+﻿const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { initializeApp } = require("firebase-admin/app");
+const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+
+initializeApp();
+
+const db = getFirestore();
+
+exports.getPremiumEntitlement = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError(
+      "unauthenticated",
+      "You must be signed in."
+    );
+  }
+
+  const uid = request.auth.uid;
+
+  const entitlementSnap = await db
+    .doc(`entitlements/${uid}`)
+    .get();
+
+  if (!entitlementSnap.exists) {
+    return {
+      premiumActive: false,
+      source: "none",
+    };
+  }
+
+  const data = entitlementSnap.data();
+
+  return {
+    premiumActive: data.premiumActive === true,
+    productId: data.productId ?? null,
+    source: data.source ?? "none",
+    purchaseOwnerUid: data.purchaseOwnerUid ?? null,
+    expiresAtMs: data.expiresAtMs ?? null,
+  };
+});

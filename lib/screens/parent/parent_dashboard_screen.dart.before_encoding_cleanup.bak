@@ -1,0 +1,317 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/widgets/app_card.dart';
+import '../../providers/user_profile_provider.dart';
+import '../../providers/student_provider.dart';
+import '../../services/link_student_service.dart';
+
+class ParentDashboardScreen extends ConsumerWidget {
+  const ParentDashboardScreen({super.key, required this.parentUid});
+  final String parentUid;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(userProfileProvider).asData?.value;
+    final linked = profile?.linkedStudentIds ?? const [];
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Dashboard',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 4),
+          const Text('This week', style: TextStyle(color: AppColors.textMuted)),
+          const SizedBox(height: 14),
+          if (linked.isEmpty)
+            _LinkCard(parentUid: parentUid)
+          else
+            _StudentDashboard(studentId: linked.first),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Link card ────────────────────────────────────────────────────────────────
+
+class _LinkCard extends ConsumerStatefulWidget {
+  const _LinkCard({required this.parentUid});
+  final String parentUid;
+
+  @override
+  ConsumerState<_LinkCard> createState() => _LinkCardState();
+}
+
+class _LinkCardState extends ConsumerState<_LinkCard> {
+  final _ctrl = TextEditingController();
+  bool _loading = false;
+  String? _err;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _link() async {
+    final email = _ctrl.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() => _err = 'Enter a valid student email.');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _err = null;
+    });
+    try {
+      await ref.read(linkStudentServiceProvider).linkStudentByEmail(email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Student linked successfully! 🎉')),
+        );
+      }
+    } on LinkStudentException catch (e) {
+      // ✅ Show the specific reason (not found, already linked, etc.)
+      setState(() => _err = e.message);
+    } catch (_) {
+      setState(() => _err = 'Could not link. Please try again.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.link_rounded, color: AppColors.indigo),
+              SizedBox(width: 10),
+              Text('Link a student',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Enter the student\'s email address. They must already have a SparkLearn student account. This dashboard is read-only.',
+            style: TextStyle(color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _ctrl,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _loading ? null : _link(),
+            decoration: InputDecoration(
+              labelText: 'Student email',
+              prefixIcon: const Icon(Icons.email_outlined),
+              errorText: _err,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _loading ? null : _link,
+              icon: _loading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.link_rounded),
+              label: Text(_loading ? 'Linking…' : 'Link Student'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.indigo,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Student dashboard ─────────────────────────────────────────────────────────
+
+class _StudentDashboard extends ConsumerWidget {
+  const _StudentDashboard({required this.studentId});
+  final String studentId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(studentDocProvider(studentId)).asData?.value;
+    if (s == null) return const Center(child: CircularProgressIndicator());
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${s.name}\'s Progress',
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+                child: _statCard(
+                    icon: Icons.trending_up_rounded,
+                    label: 'Reading Level',
+                    value: s.readingLevel.toStringAsFixed(1),
+                    subtitle: '↑ from 3.9')),
+            const SizedBox(width: 12),
+            Expanded(
+                child: _statCard(
+                    icon: Icons.schedule,
+                    label: 'Time Spent',
+                    value: '${s.timeSpentMinThisWeek} min')),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+                child: _statCard(
+                    icon: Icons.mic_rounded,
+                    label: 'Voice Usage',
+                    value: '${s.voiceUsagePct}%')),
+            const SizedBox(width: 12),
+            Expanded(
+                child: _statCard(
+                    icon: Icons.favorite_rounded,
+                    label: 'Engagement',
+                    value: s.engagement)),
+          ],
+        ),
+        const SizedBox(height: 14),
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('📊 Skill Trends',
+                  style: TextStyle(fontWeight: FontWeight.w900)),
+              const SizedBox(height: 10),
+              for (final e in s.skillTrends.entries)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    children: [
+                      Expanded(child: Text(e.key)),
+                      Text(
+                        e.value,
+                        style: TextStyle(
+                          color: e.value.toLowerCase().contains('needs')
+                              ? AppColors.coral
+                              : AppColors.green,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Unlink option
+        TextButton.icon(
+          onPressed: () async {
+            final confirm = await showDialog<bool>(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: const Text('Unlink student?'),
+                content: Text('Remove ${s.name} from your dashboard?'),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel')),
+                  TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Unlink',
+                          style: TextStyle(color: AppColors.coral))),
+                ],
+              ),
+            );
+            if (confirm == true && context.mounted) {
+              try {
+                await ref
+                    .read(linkStudentServiceProvider)
+                    .unlinkStudent(studentId);
+              } catch (_) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Could not unlink. Try again.')),
+                  );
+                }
+              }
+            }
+          },
+          icon: const Icon(Icons.link_off_rounded,
+              color: AppColors.textMuted, size: 18),
+          label: const Text('Unlink student',
+              style: TextStyle(color: AppColors.textMuted)),
+        ),
+      ],
+    );
+  }
+
+  Widget _statCard(
+      {required IconData icon,
+      required String label,
+      required String value,
+      String? subtitle}) {
+    return AppCard(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              color: AppColors.indigo.withOpacity(0.10),
+            ),
+            child: Icon(icon, color: AppColors.indigo),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: const TextStyle(
+                        color: AppColors.textMuted, fontSize: 12)),
+                const SizedBox(height: 4),
+                Text(value,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w800)),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: const TextStyle(
+                          color: AppColors.green,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12)),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -1,0 +1,123 @@
+﻿const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { initializeApp } = require("firebase-admin/app");
+const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+
+initializeApp();
+
+const db = getFirestore();
+
+exports.getPremiumEntitlement = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError(
+      "unauthenticated",
+      "You must be signed in."
+    );
+  }
+
+  const uid = request.auth.uid;
+
+  const entitlementSnap = await db
+    .doc(`entitlements/${uid}`)
+    .get();
+
+  if (!entitlementSnap.exists) {
+    return {
+      premiumActive: false,
+      source: "none",
+    };
+  }
+
+  const data = entitlementSnap.data();
+
+  return {
+    premiumActive: data.premiumActive === true,
+    productId: data.productId ?? null,
+    source: data.source ?? "none",
+    purchaseOwnerUid: data.purchaseOwnerUid ?? null,
+    expiresAtMs: data.expiresAtMs ?? null,
+  };
+});
+
+exports.verifyPremiumPurchase = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError(
+      "unauthenticated",
+      "You must be signed in."
+    );
+  }
+
+  const uid = request.auth.uid;
+
+  const productId = request.data?.productId;
+  const purchaseId = request.data?.purchaseId;
+  const source = request.data?.source;
+  const verificationData = request.data?.verificationData;
+
+  const allowedProducts = new Set([
+    "sparklearn_premium_monthly",
+    "sparklearn_premium_yearly",
+  ]);
+
+  if (!allowedProducts.has(productId)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Unknown subscription product."
+    );
+  }
+
+  if (!source || !verificationData) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Purchase verification data is missing."
+    );
+  }
+
+  if (source !== "app_store" && source !== "google_play") {
+    throw new HttpsError(
+      "invalid-argument",
+      "Unsupported purchase source."
+    );
+  }
+
+  /*
+   * IMPORTANT:
+   *
+   * Do not grant Premium based only on data received from Flutter.
+   *
+   * Apple:
+   * Verify the signed transaction using App Store Server API /
+   * Apple signed transaction data.
+   *
+   * Google:
+   * Verify the purchase token using Android Publisher
+   * purchases.subscriptionsv2.get.
+   *
+   * The verified result must confirm:
+   *   1. Product belongs to SparkLearn.
+   *   2. Product ID matches the requested product.
+   *   3. Subscription is currently active.
+   *   4. Purchase has not expired or been revoked.
+   */
+
+  throw new HttpsError(
+    "failed-precondition",
+    "Store verification is not configured yet."
+  );
+
+  // After store verification succeeds, this will be enabled:
+  //
+  // await db.doc(`entitlements/${uid}`).set({
+  //   premiumActive: true,
+  //   productId,
+  //   platform: source,
+  //   purchaseId: purchaseId ?? null,
+  //   purchaseOwnerUid: uid,
+  //   source: "own_subscription",
+  //   updatedAt: FieldValue.serverTimestamp(),
+  // }, { merge: true });
+  //
+  // return {
+  //   premiumActive: true,
+  //   productId,
+  // };
+});

@@ -1,0 +1,136 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/firebase_providers.dart';
+
+final linkStudentServiceProvider = Provider<LinkStudentService>((ref) {
+  return LinkStudentService(
+    ref.watch(firestoreProvider),
+    ref.watch(firebaseAuthProvider),
+  );
+});
+
+class LinkStudentService {
+  LinkStudentService(this._db, this._auth);
+  final FirebaseFirestore _db;
+  final FirebaseAuth _auth;
+
+  Future<void> linkStudentByEmail(String studentEmail) async {
+    final parent = _auth.currentUser;
+    if (parent == null) throw const LinkStudentException('Not signed in.');
+
+    final emailLower = studentEmail.trim().toLowerCase();
+    final emailOriginal = studentEmail.trim();
+    // Handles "cashvey@yahoo.com" input matching "Cashvey@yahoo.com" stored in Firestore
+    final emailCapital = emailLower.isEmpty
+        ? emailLower
+        : emailLower[0].toUpperCase() + emailLower.substring(1);
+
+    debugPrint('[LinkStudent] Searching: $emailLower / $emailCapital');
+    debugPrint('[LinkStudent] Parent UID: ${parent.uid}');
+
+    String? studentUid;
+
+    // Search users collection
+    studentUid ??= await _searchUsers('email', emailLower);
+    studentUid ??= await _searchUsers('email', emailOriginal);
+    studentUid ??= await _searchUsers('email', emailCapital);
+    studentUid ??= await _searchUsers('name', emailLower);
+    studentUid ??= await _searchUsers('name', emailOriginal);
+    studentUid ??= await _searchUsers('name', emailCapital);
+
+    // Search students collection (fallback)
+    if (studentUid == null) {
+      debugPrint('[LinkStudent] Not in users - checking students collection');
+      studentUid ??= await _searchStudents('email', emailLower);
+      studentUid ??= await _searchStudents('email', emailOriginal);
+      studentUid ??= await _searchStudents('email', emailCapital);
+      studentUid ??= await _searchStudents('name', emailLower);
+      studentUid ??= await _searchStudents('name', emailOriginal);
+      studentUid ??= await _searchStudents('name', emailCapital);
+    }
+
+    if (studentUid == null) {
+      throw const LinkStudentException(
+          'No student account found with that email. '
+          'Make sure the student has signed up and opened the app at least once.');
+    }
+
+    debugPrint('[LinkStudent] Found student UID: $studentUid');
+
+    if (studentUid == parent.uid) {
+      throw const LinkStudentException('You cannot link your own account.');
+    }
+
+    // Student account was verified from the users collection.
+
+    // Check not already linked
+    final pSnap = await _db.doc('users/${parent.uid}').get();
+    final alreadyLinked =
+        (pSnap.data()?['linkedStudentIds'] as List?)?.cast<String>() ?? [];
+    if (alreadyLinked.contains(studentUid)) {
+      throw const LinkStudentException(
+          'This student is already linked to your account.');
+    }
+
+    // Link student to parent profile
+    final uid = studentUid;
+    await _db.doc('users/${parent.uid}').update({
+      'linkedStudentIds': FieldValue.arrayUnion([uid]),
+    });
+
+    debugPrint('[LinkStudent] Linked $uid to ${parent.uid}');
+  }
+
+  Future<void> unlinkStudent(String studentUid) async {
+    final parent = _auth.currentUser;
+    if (parent == null) throw const LinkStudentException('Not signed in.');
+
+    await _db.doc('users/${parent.uid}').update({
+      'linkedStudentIds': FieldValue.arrayRemove([studentUid]),
+    });
+
+    debugPrint('[LinkStudent] Unlinked $studentUid');
+  }
+
+  // Helpers
+
+  Future<String?> _searchUsers(String field, String value) async {
+    try {
+      final q = await _db
+          .collection('users')
+          .where(field, isEqualTo: value)
+          .limit(1)
+          .get();
+      debugPrint('[LinkStudent] users.$field=$value -> ${q.docs.length} docs');
+      if (q.docs.isEmpty) return null;
+      final role = q.docs.first.data()['role'] as String?;
+      return role == 'student' ? q.docs.first.id : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?> _searchStudents(String field, String value) async {
+    try {
+      final q = await _db
+          .collection('students')
+          .where(field, isEqualTo: value)
+          .limit(1)
+          .get();
+      debugPrint(
+          '[LinkStudent] students.$field=$value -> ${q.docs.length} docs');
+      return q.docs.isEmpty ? null : q.docs.first.id;
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+class LinkStudentException implements Exception {
+  const LinkStudentException(this.message);
+  final String message;
+  @override
+  String toString() => message;
+}

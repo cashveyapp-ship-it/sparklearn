@@ -19,14 +19,38 @@ class PracticeItem {
 /// Provides reading comprehension items grouped by reading level bucket.
 class PracticeRepository {
   /// Loads items for the given reading-level [bucket] (3 or 4).
-  Future<List<PracticeItem>> loadReadingItems(int bucket) async {
-    // Simulate a short async load (would be a Firestore fetch in production)
+  Future<List<PracticeItem>> loadReadingItems(
+    int bucket, {
+    String? goal,
+  }) async {
     await Future.delayed(const Duration(milliseconds: 80));
+
+    final normalizedGoal = (goal ?? '').toLowerCase();
+
+    if (normalizedGoal.contains('spelling') ||
+        normalizedGoal.contains('spell')) {
+      return bucket <= 3 ? _spelling3 : _spelling4;
+    }
+
+    if (normalizedGoal.contains('vocabulary') ||
+        normalizedGoal.contains('context clue')) {
+      return bucket <= 3 ? _vocabulary3 : _vocabulary4;
+    }
+
+    if (normalizedGoal.contains('main idea')) {
+      return bucket <= 3 ? _mainIdea3 : _mainIdea4;
+    }
+
+    if (normalizedGoal.contains('inference') ||
+        normalizedGoal.contains('infer')) {
+      return bucket <= 3 ? _inference3 : _inference4;
+    }
+
     return bucket <= 3 ? _bucket3 : _bucket4;
   }
 }
 
-// ── Grade 3 items ─────────────────────────────────────────────────────────────
+// Grade 3 items
 
 const _bucket3 = <PracticeItem>[
   PracticeItem(
@@ -62,7 +86,7 @@ const _bucket3 = <PracticeItem>[
   ),
 ];
 
-// ── Grade 4 items ─────────────────────────────────────────────────────────────
+// Grade 4 items
 
 const _bucket4 = <PracticeItem>[
   PracticeItem(
@@ -100,5 +124,169 @@ const _bucket4 = <PracticeItem>[
     question: 'What made the young archaeologist important to this story?',
     ideal:
         'The archaeologist noticed a pattern and was finally able to decode the symbols that had puzzled people for centuries.',
+  ),
+];
+
+// Vocabulary and context clues - Grade 3
+const _vocabulary3 = <PracticeItem>[
+  PracticeItem(
+    sentence:
+        'Lena was exhausted after running around the playground for an hour.',
+    question: 'What does exhausted most likely mean?',
+    ideal: 'Exhausted means very tired.',
+  ),
+  PracticeItem(
+    sentence: 'The tiny kitten cautiously stepped toward the much larger dog.',
+    question: 'What does cautiously mean in this sentence?',
+    ideal: 'Cautiously means carefully or with care.',
+  ),
+  PracticeItem(
+    sentence: 'The glass vase was fragile, so Mia carried it with both hands.',
+    question: 'What does fragile mean?',
+    ideal: 'Fragile means easily broken.',
+  ),
+];
+
+// Vocabulary and context clues - Grade 4
+const _vocabulary4 = <PracticeItem>[
+  PracticeItem(
+    sentence:
+        'The hikers were relieved when they finally reached the shelter before the storm.',
+    question: 'What does relieved mean in this sentence?',
+    ideal: 'Relieved means no longer worried or afraid.',
+  ),
+  PracticeItem(
+    sentence:
+        'Marcus was reluctant to enter the contest, but his teacher encouraged him.',
+    question: 'What does reluctant most likely mean?',
+    ideal: 'Reluctant means unsure or unwilling to do something.',
+  ),
+  PracticeItem(
+    sentence:
+        'The museum displayed an ancient artifact that had been preserved for centuries.',
+    question: 'What does preserved mean?',
+    ideal: 'Preserved means kept safe or protected from damage.',
+  ),
+];
+
+// Main idea - Grade 3
+const _mainIdea3 = <PracticeItem>[
+  PracticeItem(
+    sentence:
+        'Bees visit flowers to collect nectar. As they move from flower to flower, they also carry pollen that helps plants grow new seeds.',
+    question: 'What is the main idea?',
+    ideal: 'Bees help plants reproduce while collecting nectar.',
+  ),
+  PracticeItem(
+    sentence:
+        'Carlos feeds his dog every morning, fills the water bowl, and takes the dog outside before school.',
+    question: 'What is the main idea?',
+    ideal: 'Carlos takes care of his dog every morning.',
+  ),
+];
+
+// Main idea - Grade 4
+const _mainIdea4 = <PracticeItem>[
+  PracticeItem(
+    sentence:
+        'Trees provide shade, produce oxygen, give animals places to live, and help prevent soil from washing away.',
+    question: 'What is the main idea of this paragraph?',
+    ideal:
+        'Trees provide many important benefits to people and the environment.',
+  ),
+  PracticeItem(
+    sentence:
+        'Recycling paper, glass, and plastic reduces waste and allows materials to be used again instead of being thrown away.',
+    question: 'What is the main idea?',
+    ideal: 'Recycling reduces waste by allowing materials to be reused.',
+  ),
+];
+
+// Inference - Grade 3
+const _inference3 = <PracticeItem>[
+  PracticeItem(
+    sentence:
+        'Jordan grabbed an umbrella and put on his rain boots before walking outside.',
+    question: 'What can you infer about the weather?',
+    ideal: 'It is probably raining or expected to rain.',
+  ),
+  PracticeItem(
+    sentence: 'Nina blew out the candles while her family sang and clapped.',
+    question: 'What can you infer is happening?',
+    ideal: 'Nina is celebrating her birthday.',
+  ),
+];
+
+// Inference - Grade 4
+const _inference4 = <PracticeItem>[
+  PracticeItem(
+    sentence:
+        'The lights were off, the parking lot was empty, and a sign on the door listed opening time as 9:00 a.m.',
+    question: 'What can you infer about the store?',
+    ideal: 'The store is probably closed.',
+  ),
+  PracticeItem(
+    sentence:
+        'Eli studied every evening, reviewed his notes twice, and smiled when the teacher placed the test on his desk.',
+    question: 'What can you infer about how Eli feels about the test?',
+    ideal: 'Eli probably feels prepared or confident.',
+  ),
+];
+
+// Spelling - Grade 3
+const _spelling3 = <PracticeItem>[
+  PracticeItem(
+    sentence: 'Which word is spelled correctly?',
+    question: 'Choose the correct spelling.',
+    ideal: 'beautiful',
+  ),
+  PracticeItem(
+    sentence: 'Which word is spelled correctly?',
+    question: 'Choose the correct spelling.',
+    ideal: 'because',
+  ),
+  PracticeItem(
+    sentence: 'Which word is spelled correctly?',
+    question: 'Choose the correct spelling.',
+    ideal: 'different',
+  ),
+  PracticeItem(
+    sentence: 'Which word is spelled correctly?',
+    question: 'Choose the correct spelling.',
+    ideal: 'favorite',
+  ),
+  PracticeItem(
+    sentence: 'Which word is spelled correctly?',
+    question: 'Choose the correct spelling.',
+    ideal: 'remember',
+  ),
+];
+
+// Spelling - Grade 4
+const _spelling4 = <PracticeItem>[
+  PracticeItem(
+    sentence: 'Which word is spelled correctly?',
+    question: 'Choose the correct spelling.',
+    ideal: 'necessary',
+  ),
+  PracticeItem(
+    sentence: 'Which word is spelled correctly?',
+    question: 'Choose the correct spelling.',
+    ideal: 'separate',
+  ),
+  PracticeItem(
+    sentence: 'Which word is spelled correctly?',
+    question: 'Choose the correct spelling.',
+    ideal: 'environment',
+  ),
+  PracticeItem(
+    sentence: 'Which word is spelled correctly?',
+    question: 'Choose the correct spelling.',
+    ideal: 'beginning',
+  ),
+  PracticeItem(
+    sentence: 'Which word is spelled correctly?',
+    question: 'Choose the correct spelling.',
+    ideal: 'knowledge',
   ),
 ];
