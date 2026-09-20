@@ -1,3 +1,5 @@
+﻿import 'package:cloud_functions/cloud_functions.dart';
+
 /// A reading practice item shown to the student.
 class PracticeItem {
   const PracticeItem({
@@ -19,13 +21,75 @@ class PracticeItem {
 /// Provides reading comprehension items grouped by reading level bucket.
 class PracticeRepository {
   /// Loads items for the given reading-level [bucket] (3 or 4).
+  ///
+  /// When the student has a Today's Goal, SparkLearn first attempts to
+  /// generate practice specifically for that goal. Existing local practice
+  /// items remain available as a fallback if AI generation is unavailable.
   Future<List<PracticeItem>> loadReadingItems(
     int bucket, {
     String? goal,
   }) async {
     await Future.delayed(const Duration(milliseconds: 80));
 
-    final normalizedGoal = (goal ?? '').toLowerCase();
+    final cleanGoal = (goal ?? '').trim();
+    final normalizedGoal = cleanGoal.toLowerCase();
+
+    if (cleanGoal.isNotEmpty) {
+      try {
+        final functions = FirebaseFunctions.instanceFor(
+          region: 'us-central1',
+        );
+
+        final callable = functions.httpsCallable(
+          'generatePractice',
+          options: HttpsCallableOptions(
+            timeout: const Duration(seconds: 60),
+          ),
+        );
+
+        final result = await callable.call<Map<String, dynamic>>({
+          'goal': cleanGoal,
+          'readingLevel': bucket,
+        });
+
+        final data = result.data;
+        final rawItems = data['items'];
+
+        if (data['ok'] == true && rawItems is List) {
+          final generatedItems = rawItems
+              .whereType<Map>()
+              .map(
+                (item) => Map<String, dynamic>.from(item),
+              )
+              .where(
+                (item) =>
+                    item['sentence'] is String &&
+                    item['question'] is String &&
+                    item['ideal'] is String,
+              )
+              .map(
+                (item) => PracticeItem(
+                  sentence: (item['sentence'] as String).trim(),
+                  question: (item['question'] as String).trim(),
+                  ideal: (item['ideal'] as String).trim(),
+                ),
+              )
+              .where(
+                (item) =>
+                    item.sentence.isNotEmpty &&
+                    item.question.isNotEmpty &&
+                    item.ideal.isNotEmpty,
+              )
+              .toList();
+
+          if (generatedItems.isNotEmpty) {
+            return generatedItems;
+          }
+        }
+      } catch (_) {
+        // Keep the existing local practice system as the fallback.
+      }
+    }
 
     if (normalizedGoal.contains('spelling') ||
         normalizedGoal.contains('spell')) {
@@ -290,3 +354,4 @@ const _spelling4 = <PracticeItem>[
     ideal: 'knowledge',
   ),
 ];
+
