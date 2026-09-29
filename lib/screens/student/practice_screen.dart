@@ -2,8 +2,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/responsive/responsive_page.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_button.dart';
 import '../../providers/firebase_providers.dart';
@@ -68,7 +68,7 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
     if (ok) _correct += 1;
 
     final feedback = ok
-        ? 'Nice work - that' 's right.'
+        ? "Nice work - that's right."
         : 'Good try. A gentle hint: ${_hint(ideal)}';
 
     // Show snack (no red X)
@@ -212,70 +212,76 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
 
     final item = _items[_idx];
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Practice',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 4),
-          Text(
-            _activeGoal,
-            style: const TextStyle(
-              color: AppColors.indigo,
-              fontWeight: FontWeight.w700,
+    return ResponsivePage(
+      maxWidth: 900,
+      mobilePadding: 0,
+      tabletPadding: 0,
+      desktopPadding: 0,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Practice',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 4),
+            Text(
+              _activeGoal,
+              style: const TextStyle(
+                color: AppColors.indigo,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Practice for today' 's goal',
-            style: TextStyle(color: AppColors.textMuted),
-          ),
-          const SizedBox(height: 14),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.menu_book_rounded, color: AppColors.indigo),
-                    SizedBox(width: 10),
-                    Text(
-                        _activeGoal.toLowerCase().contains('spell')
-                            ? 'Choose the correctly spelled word:'
-                            : 'Read this sentence:',
-                        style: const TextStyle(fontWeight: FontWeight.w800)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    color: AppColors.indigo.withOpacity(0.08),
+            const SizedBox(height: 4),
+            const Text(
+              "Practice for today's goal",
+              style: TextStyle(color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 14),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.menu_book_rounded, color: AppColors.indigo),
+                      SizedBox(width: 10),
+                      Text(
+                          _activeGoal.toLowerCase().contains('spell')
+                              ? 'Choose the correctly spelled word:'
+                              : 'Read this sentence:',
+                          style: const TextStyle(fontWeight: FontWeight.w800)),
+                    ],
                   ),
-                  child: Text('"${item.sentence}"',
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.w700)),
-                ),
-                const SizedBox(height: 14),
-                Text(item.question,
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 10),
-                _AnswerGrid(
-                  onPick: _answer,
-                  ideal: item.ideal,
-                  goal: _activeGoal,
-                ),
-              ],
-            ),
-          ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.04, end: 0),
-          const SizedBox(height: 10),
-          Text('Question ${_idx + 1} of ${_items.length}',
-              style: const TextStyle(color: AppColors.textMuted)),
-        ],
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      color: AppColors.indigo.withValues(alpha: 0.08),
+                    ),
+                    child: Text('"${item.sentence}"',
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w700)),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(item.question,
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 10),
+                  _AnswerGrid(
+                    onPick: _answer,
+                    ideal: item.ideal,
+                    goal: _activeGoal,
+                  ),
+                ],
+              ),
+            ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.04, end: 0),
+            const SizedBox(height: 10),
+            Text('Question ${_idx + 1} of ${_items.length}',
+                style: const TextStyle(color: AppColors.textMuted)),
+          ],
+        ),
       ),
     );
   }
@@ -354,9 +360,14 @@ class _AnswerGrid extends StatelessWidget {
                 'It describes what happened in the sentence.',
               ];
 
+    // Keep the answer order mixed while remaining stable for this question.
+    final shuffledChoices = List<String>.from(choices);
+    final seed = Object.hash(ideal, goal);
+    shuffledChoices.shuffle(Random(seed));
+
     return Column(
       children: [
-        for (final c in choices)
+        for (final c in shuffledChoices)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: AppButton(

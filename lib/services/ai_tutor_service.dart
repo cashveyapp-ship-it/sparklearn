@@ -1,18 +1,7 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'dart:convert';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 import '../providers/firebase_providers.dart';
-
-// ------------------------------------------------------------
-// Replace with your real OpenAI API key.
-//    For production, load this from a Cloud Function or secure backend so the
-//    key is never shipped inside the app binary.
-// ------------------------------------------------------------
-final String _kOpenAiApiKey = dotenv.env['OPENAI_API_KEY'] ?? '';
-const String _kModel =
-    'gpt-4o-mini'; // fast + affordable; swap to gpt-4o for higher quality
 
 final aiTutorServiceProvider = Provider<AiTutorService>((ref) {
   return AiTutorService(db: ref.watch(firestoreProvider));
@@ -86,42 +75,30 @@ Your rules:
             'content': d['text'] as String,
           }),
     ];
-
-    // 3. Call OpenAI
-
-    if (_kOpenAiApiKey.isEmpty) {
-      throw StateError(
-          'Missing OPENAI_API_KEY. Run with: flutter run --dart-define=OPENAI_API_KEY=YOUR_KEY');
-    }
-
-    final response = await http.post(
-      Uri.parse('https://api.openai.com/v1/chat/completions'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $_kOpenAiApiKey',
-      },
-      body: jsonEncode({
-        'model': _kModel,
-        'messages': messages,
-        'max_tokens': 200,
-        'temperature': 0.7,
-      }),
+    // 3. Call the secure SparkLearn AI Tutor backend.
+    final functions = FirebaseFunctions.instanceFor(
+      region: 'us-central1',
     );
 
-    if (response.statusCode != 200) {
-      // Save a graceful error message rather than crashing
-      await col.add({
-        'role': 'assistant',
-        'text':
-            'I had a little trouble thinking just now - could you ask me again?',
-        'createdAt': DateTime.now().millisecondsSinceEpoch,
-      });
-      return;
+    final callable = functions.httpsCallable(
+      'aiTutorReply',
+      options: HttpsCallableOptions(
+        timeout: const Duration(seconds: 60),
+      ),
+    );
+
+    final result = await callable.call<Map<String, dynamic>>({
+      'messages': messages,
+    });
+
+    final data = result.data;
+    final rawReply = data['reply'];
+
+    if (data['ok'] != true || rawReply is! String || rawReply.trim().isEmpty) {
+      throw StateError('AI Tutor returned an empty response.');
     }
 
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final reply =
-        (body['choices'] as List).first['message']['content'] as String;
+    final reply = rawReply.trim();
 
     // 4. Save assistant response
     await col.add({

@@ -1,4 +1,4 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/firebase_providers.dart';
@@ -92,7 +92,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _selectedStudentId,
+              initialValue: _selectedStudentId,
               isExpanded: true,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
@@ -435,4 +435,3 @@ class _StudentDashboard extends ConsumerWidget {
     );
   }
 }
-

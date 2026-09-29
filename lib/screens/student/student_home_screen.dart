@@ -1,8 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_button.dart';
@@ -222,36 +221,68 @@ class _StudentHomeScreenState extends ConsumerState<StudentHomeScreen> {
               const SizedBox(height: 18),
               const SectionTitle('Quick Stats'),
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                      child: _statCard(
-                          icon: Icons.timer_outlined,
-                          label: 'Time This Week',
-                          value: '$displayTimeThisWeek min')),
-                  const SizedBox(width: 10),
-                  Expanded(
-                      child: _statCard(
-                          icon: Icons.record_voice_over_outlined,
-                          label: 'Voice Usage',
-                          value: '$displayVoiceUsage%')),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                      child: _statCard(
-                          icon: Icons.trending_up_outlined,
-                          label: 'Engagement',
-                          value: isCurrentWeek ? s.engagement : 'Building')),
-                  const SizedBox(width: 10),
-                  Expanded(
-                      child: _statCard(
-                          icon: Icons.menu_book_outlined,
-                          label: 'Reading Level',
-                          value: s.readingLevel.toStringAsFixed(1))),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final singleColumn = constraints.maxWidth < 560;
+
+                  final timeThisWeek = _statCard(
+                    icon: Icons.timer_outlined,
+                    label: 'Time This Week',
+                    value: '$displayTimeThisWeek min',
+                  );
+
+                  final voiceUsage = _statCard(
+                    icon: Icons.record_voice_over_outlined,
+                    label: 'Voice Usage',
+                    value: '$displayVoiceUsage%',
+                  );
+
+                  final engagement = _statCard(
+                    icon: Icons.trending_up_outlined,
+                    label: 'Engagement',
+                    value: isCurrentWeek ? s.engagement : 'Building',
+                  );
+
+                  final readingLevel = _statCard(
+                    icon: Icons.menu_book_outlined,
+                    label: 'Reading Level',
+                    value: s.readingLevel.toStringAsFixed(1),
+                  );
+
+                  if (singleColumn) {
+                    return Column(
+                      children: [
+                        timeThisWeek,
+                        const SizedBox(height: 10),
+                        voiceUsage,
+                        const SizedBox(height: 10),
+                        engagement,
+                        const SizedBox(height: 10),
+                        readingLevel,
+                      ],
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: timeThisWeek),
+                          const SizedBox(width: 10),
+                          Expanded(child: voiceUsage),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(child: engagement),
+                          const SizedBox(width: 10),
+                          Expanded(child: readingLevel),
+                        ],
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 18),
               AppCard(

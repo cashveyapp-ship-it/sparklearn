@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'subscription_screen.dart';
+import '../core/responsive/responsive_page.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/app_card.dart';
 import '../../providers/firebase_providers.dart';
@@ -16,159 +17,162 @@ class SettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        padding: const EdgeInsets.all(18),
-        children: [
-          AppCard(
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 26,
-                  backgroundColor: AppColors.indigo.withOpacity(0.12),
-                  child: const Icon(Icons.person_rounded,
-                      color: AppColors.indigo, size: 28),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(profile?.displayName ?? 'User',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w800, fontSize: 16)),
-                      Text(profile?.email ?? '',
-                          style: const TextStyle(
-                              color: AppColors.textMuted, fontSize: 13)),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          color: AppColors.indigo.withOpacity(0.10),
-                        ),
-                        child: Text(
-                          profile?.role == 'parent' ? 'Parent' : 'Student',
-                          style: const TextStyle(
-                              color: AppColors.indigo,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ],
+      body: ResponsivePage(
+        maxWidth: 900,
+        child: ListView(
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          children: [
+            AppCard(
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 26,
+                    backgroundColor: AppColors.indigo.withValues(alpha: 0.12),
+                    child: const Icon(Icons.person_rounded,
+                        color: AppColors.indigo, size: 28),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Security',
-                    style:
-                        TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-                const SizedBox(height: 4),
-                _Tile(
-                  icon: Icons.lock_outline_rounded,
-                  label: 'Change password',
-                  onTap: () => _showChangePassword(context, ref),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'SparkLearn Premium',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(profile?.displayName ?? 'User',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w800, fontSize: 16)),
+                        Text(profile?.email ?? '',
+                            style: const TextStyle(
+                                color: AppColors.textMuted, fontSize: 13)),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            color: AppColors.indigo.withValues(alpha: 0.10),
+                          ),
+                          child: Text(
+                            profile?.role == 'parent' ? 'Parent' : 'Student',
+                            style: const TextStyle(
+                                color: AppColors.indigo,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                _Tile(
-                  icon: Icons.workspace_premium_rounded,
-                  label: 'Subscription Plans',
-                  sublabel: 'Monthly \$1.99 | Yearly save 3%',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const SubscriptionScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 14),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Legal & Support',
-                    style:
-                        TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-                const SizedBox(height: 4),
-                _Tile(
-                  icon: Icons.description_outlined,
-                  label: 'Terms of Service',
-                  onTap: () =>
-                      _showPolicy(context, _tosContent, 'Terms of Service'),
-                ),
-                _Tile(
-                  icon: Icons.privacy_tip_outlined,
-                  label: 'Privacy Policy',
-                  onTap: () =>
-                      _showPolicy(context, _privacyContent, 'Privacy Policy'),
-                ),
-                _Tile(
-                  icon: Icons.mail_outline_rounded,
-                  label: 'Contact Support',
-                  sublabel: 'alerttmenow@gmail.com',
-                  onTap: () => _showContact(context),
-                ),
-              ],
+            const SizedBox(height: 14),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Security',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                  const SizedBox(height: 4),
+                  _Tile(
+                    icon: Icons.lock_outline_rounded,
+                    label: 'Change password',
+                    onTap: () => _showChangePassword(context, ref),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 14),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Account Actions',
+            const SizedBox(height: 14),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'SparkLearn Premium',
                     style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 16,
-                        color: AppColors.coral)),
-                const SizedBox(height: 4),
-                _Tile(
-                  icon: Icons.logout_rounded,
-                  label: 'Sign out',
-                  color: AppColors.textMuted,
-                  onTap: () => _confirmSignOut(context, ref),
-                ),
-                _Tile(
-                  icon: Icons.delete_forever_rounded,
-                  label: 'Delete account',
-                  color: AppColors.coral,
-                  onTap: () => _showDeleteAccount(context, ref),
-                ),
-              ],
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  _Tile(
+                    icon: Icons.workspace_premium_rounded,
+                    label: 'Subscription Plans',
+                    sublabel: 'Monthly \$1.99 | Yearly save 4%',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const SubscriptionScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
-          const Center(
-            child: Text('SparkLearn v1.0',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
-          ),
-          const SizedBox(height: 8),
-        ],
+            const SizedBox(height: 14),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Legal & Support',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                  const SizedBox(height: 4),
+                  _Tile(
+                    icon: Icons.description_outlined,
+                    label: 'Terms of Service',
+                    onTap: () =>
+                        _showPolicy(context, _tosContent, 'Terms of Service'),
+                  ),
+                  _Tile(
+                    icon: Icons.privacy_tip_outlined,
+                    label: 'Privacy Policy',
+                    onTap: () =>
+                        _showPolicy(context, _privacyContent, 'Privacy Policy'),
+                  ),
+                  _Tile(
+                    icon: Icons.mail_outline_rounded,
+                    label: 'Contact Support',
+                    sublabel: 'alerttmenow@gmail.com',
+                    onTap: () => _showContact(context),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Account Actions',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                          color: AppColors.coral)),
+                  const SizedBox(height: 4),
+                  _Tile(
+                    icon: Icons.logout_rounded,
+                    label: 'Sign out',
+                    color: AppColors.textMuted,
+                    onTap: () => _confirmSignOut(context, ref),
+                  ),
+                  _Tile(
+                    icon: Icons.delete_forever_rounded,
+                    label: 'Delete account',
+                    color: AppColors.coral,
+                    onTap: () => _showDeleteAccount(context, ref),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Center(
+              child: Text('SparkLearn v1.0',
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }

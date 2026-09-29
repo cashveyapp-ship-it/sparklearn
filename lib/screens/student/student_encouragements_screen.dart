@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/app_card.dart';
+import '../../core/responsive/responsive_page.dart';
 import '../../models/encouragement.dart';
 import '../../services/encouragement_service.dart';
 
@@ -31,7 +32,7 @@ class _StudentEncouragementsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Encouragements 💙'),
+        title: const Text('Encouragements'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(28),
           child: Padding(
@@ -48,135 +49,140 @@ class _StudentEncouragementsScreenState
           ),
         ),
       ),
-      body: StreamBuilder<List<Encouragement>>(
-        stream: ref
-            .read(encouragementServiceProvider)
-            .streamForStudent(widget.studentId),
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: ResponsivePage(
+        maxWidth: 900,
+        child: StreamBuilder<List<Encouragement>>(
+          stream: ref
+              .read(encouragementServiceProvider)
+              .streamForStudent(widget.studentId),
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (snap.hasError) {
-            return Center(
-              child: Text('Error: ${snap.error}',
-                  style: const TextStyle(color: AppColors.textMuted)),
-            );
-          }
+            if (snap.hasError) {
+              return Center(
+                child: Text('Error: ${snap.error}',
+                    style: const TextStyle(color: AppColors.textMuted)),
+              );
+            }
 
-          final items = snap.data ?? [];
+            final items = snap.data ?? [];
 
-          if (items.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.favorite_border,
-                      size: 64, color: AppColors.textMuted),
-                  SizedBox(height: 16),
-                  Text('No encouragements yet',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                  SizedBox(height: 8),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 40),
-                    child: Text(
-                      'Ask your parent to send one from their Encourage tab!',
-                      style: TextStyle(color: AppColors.textMuted),
-                      textAlign: TextAlign.center,
+            if (items.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.favorite_border,
+                        size: 64, color: AppColors.textMuted),
+                    SizedBox(height: 16),
+                    Text('No encouragements yet',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w700)),
+                    SizedBox(height: 8),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 40),
+                      child: Text(
+                        'Ask your parent to send one from their Encourage tab!',
+                        style: TextStyle(color: AppColors.textMuted),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(18),
-            itemCount: items.length,
-            itemBuilder: (context, i) {
-              final e = items[i];
-              final isNew = e.seenAtMs == null;
-
-              return Dismissible(
-                key: Key(e.id),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 20),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(Icons.delete_outline, color: Colors.white),
-                ),
-                onDismissed: (_) => ref
-                    .read(encouragementServiceProvider)
-                    .delete(widget.studentId, e.id),
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: AppCard(
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.coral.withOpacity(0.12),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(_emoji(e.messageKey),
-                              style: const TextStyle(fontSize: 26)),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      _text(e.messageKey),
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 15),
-                                    ),
-                                  ),
-                                  if (isNew)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(8),
-                                        color: AppColors.coral,
-                                      ),
-                                      child: const Text('New',
-                                          style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w900)),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(_timeAgo(e.createdAtMs),
-                                  style: const TextStyle(
-                                      color: AppColors.textMuted,
-                                      fontSize: 12)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  ],
                 ),
               );
-            },
-          );
-        },
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(18),
+              itemCount: items.length,
+              itemBuilder: (context, i) {
+                final e = items[i];
+                final isNew = e.seenAtMs == null;
+
+                return Dismissible(
+                  key: Key(e.id),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child:
+                        const Icon(Icons.delete_outline, color: Colors.white),
+                  ),
+                  onDismissed: (_) => ref
+                      .read(encouragementServiceProvider)
+                      .delete(widget.studentId, e.id),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: AppCard(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 52,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.coral.withValues(alpha: 0.12),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(_emoji(e.messageKey),
+                                style: const TextStyle(fontSize: 26)),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        _text(e.messageKey),
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 15),
+                                      ),
+                                    ),
+                                    if (isNew)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          color: AppColors.coral,
+                                        ),
+                                        child: const Text('New',
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w900)),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(_timeAgo(e.createdAtMs),
+                                    style: const TextStyle(
+                                        color: AppColors.textMuted,
+                                        fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -184,13 +190,13 @@ class _StudentEncouragementsScreenState
   String _emoji(String key) {
     switch (key) {
       case 'keep_it_up':
-        return '👍';
+        return '\u{1F44D}';
       case 'proud_of_you':
-        return '⭐';
+        return '\u{2B50}';
       case 'stay_consistent':
-        return '💪';
+        return '\u{1F4AA}';
       default:
-        return '💙';
+        return '\u{1F499}';
     }
   }
 
@@ -201,7 +207,7 @@ class _StudentEncouragementsScreenState
       case 'proud_of_you':
         return "I'm so proud of you and all your hard work!";
       case 'stay_consistent':
-        return 'Stay consistent — small steps lead to big results!';
+        return '\u{1F4AA}';
       default:
         return "You've got this!";
     }

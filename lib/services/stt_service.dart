@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 /// Speech-to-text service wrapping the speech_to_text package.
@@ -9,7 +10,7 @@ class SttService {
 
   Future<void> init() async {
     _available = await _stt.initialize(
-      onError: (e) => print('STT error: $e'),
+      onError: (e) => debugPrint('STT error: $e'),
     );
   }
 
@@ -30,7 +31,9 @@ class SttService {
       onResult: (r) => result = r.recognizedWords,
       listenFor: listenFor,
       pauseFor: pauseFor,
-      partialResults: false,
+      listenOptions: SpeechListenOptions(
+        partialResults: false,
+      ),
       localeId: 'en_US',
     );
 

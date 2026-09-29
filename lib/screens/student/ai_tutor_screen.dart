@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/responsive/responsive_page.dart';
 import '../../core/widgets/app_card.dart';
 import '../../providers/ai_tutor_provider.dart';
 import '../../providers/user_profile_provider.dart';
@@ -72,8 +73,9 @@ class _AiTutorScreenState extends ConsumerState<AiTutorScreen> {
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(userProfileProvider).asData?.value;
-    if (profile == null)
+    if (profile == null) {
       return const Center(child: CircularProgressIndicator());
+    }
     final studentId = profile.uid;
 
     final student = ref.watch(studentDocProvider(studentId)).asData?.value;
@@ -82,139 +84,146 @@ class _AiTutorScreenState extends ConsumerState<AiTutorScreen> {
 
     final svc = ref.watch(aiTutorServiceProvider);
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(18, 6, 18, 0),
-          child: AppCard(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: AppColors.indigo.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(14),
+    return ResponsivePage(
+      maxWidth: 1100,
+      mobilePadding: 0,
+      tabletPadding: 0,
+      desktopPadding: 0,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 6, 18, 0),
+            child: AppCard(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: AppColors.indigo.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(Icons.smart_toy_rounded,
+                        color: AppColors.indigo),
                   ),
-                  child: const Icon(Icons.smart_toy_rounded,
-                      color: AppColors.indigo),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('AI Tutor',
-                          style: TextStyle(fontWeight: FontWeight.w900)),
-                      SizedBox(height: 2),
-                      Text('Online',
-                          style: TextStyle(
-                              color: AppColors.green,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700)),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: _voiceMode ? 'Voice mode' : 'Typing mode',
-                  onPressed: () => setState(() => _voiceMode = !_voiceMode),
-                  icon: Icon(
-                      _voiceMode ? Icons.mic_rounded : Icons.keyboard_rounded,
-                      color: AppColors.textMuted),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: svc.messageStream(studentId),
-            builder: (context, snap) {
-              final docs = snap.data?.docs ?? [];
-              return ListView.builder(
-                reverse: true,
-                padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
-                itemCount: docs.length + 1,
-                itemBuilder: (context, i) {
-                  if (i == docs.length) {
-                    return AppCard(
-                      padding: const EdgeInsets.all(14),
-                      child: Row(
-                        children: const [
-                          Icon(Icons.lightbulb_outline, color: AppColors.coral),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Let\'s work on reading together. What would you like to learn about today?',
-                              style: TextStyle(color: AppColors.textMuted),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  final m = docs[i].data();
-                  final role = (m['role'] ?? 'user') as String;
-                  final text = (m['text'] ?? '') as String;
-
-                  return _ChatBubble(
-                    isUser: role == 'user',
-                    text: text,
-                    onSpeak:
-                        role == 'assistant' ? () => _tts.speak(text) : null,
-                  );
-                },
-              );
-            },
-          ),
-        ),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 8, 18, 14),
-            child: Row(
-              children: [
-                if (_voiceMode)
-                  _MicButton(
-                      stt: _stt,
-                      onResult: (heard) {
-                        _ctrl.text = heard;
-                        setState(() {});
-                      })
-                else
                   const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _ctrl,
-                    minLines: 1,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      hintText: 'Ask me anything…',
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('AI Tutor',
+                            style: TextStyle(fontWeight: FontWeight.w900)),
+                        SizedBox(height: 2),
+                        Text('Online',
+                            style: TextStyle(
+                                color: AppColors.green,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700)),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                FloatingActionButton(
-                  backgroundColor: AppColors.indigo,
-                  onPressed: _sending
-                      ? null
-                      : () => _send(svc, studentId, readingLevel, lastAcc),
-                  child: _sending
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.send_rounded, color: Colors.white),
-                ),
-              ],
+                  IconButton(
+                    tooltip: _voiceMode ? 'Voice mode' : 'Typing mode',
+                    onPressed: () => setState(() => _voiceMode = !_voiceMode),
+                    icon: Icon(
+                        _voiceMode ? Icons.mic_rounded : Icons.keyboard_rounded,
+                        color: AppColors.textMuted),
+                  ),
+                ],
+              ),
             ),
           ),
-        )
-      ],
+          const SizedBox(height: 6),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: svc.messageStream(studentId),
+              builder: (context, snap) {
+                final docs = snap.data?.docs ?? [];
+                return ListView.builder(
+                  reverse: true,
+                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+                  itemCount: docs.length + 1,
+                  itemBuilder: (context, i) {
+                    if (i == docs.length) {
+                      return AppCard(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          children: const [
+                            Icon(Icons.lightbulb_outline,
+                                color: AppColors.coral),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Let\'s work on reading together. What would you like to learn about today?',
+                                style: TextStyle(color: AppColors.textMuted),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    final m = docs[i].data();
+                    final role = (m['role'] ?? 'user') as String;
+                    final text = (m['text'] ?? '') as String;
+
+                    return _ChatBubble(
+                      isUser: role == 'user',
+                      text: text,
+                      onSpeak:
+                          role == 'assistant' ? () => _tts.speak(text) : null,
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 14),
+              child: Row(
+                children: [
+                  if (_voiceMode)
+                    _MicButton(
+                        stt: _stt,
+                        onResult: (heard) {
+                          _ctrl.text = heard;
+                          setState(() {});
+                        })
+                  else
+                    const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _ctrl,
+                      minLines: 1,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        hintText: 'Ask me anything...',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  FloatingActionButton(
+                    backgroundColor: AppColors.indigo,
+                    onPressed: _sending
+                        ? null
+                        : () => _send(svc, studentId, readingLevel, lastAcc),
+                    child: _sending
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.send_rounded, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          )
+        ],
+      ),
     );
   }
 }
@@ -269,7 +278,7 @@ class _ChatBubble extends StatelessWidget {
   }
 }
 
-// ── Mic button with listening state ──────────────────────────────────────────
+// Mic button with listening state
 
 class _MicButton extends StatefulWidget {
   const _MicButton({required this.stt, required this.onResult});
@@ -306,11 +315,12 @@ class _MicButtonState extends State<_MicButton> {
       duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color:
-            _listening ? AppColors.coral.withOpacity(0.15) : Colors.transparent,
+        color: _listening
+            ? AppColors.coral.withValues(alpha: 0.15)
+            : Colors.transparent,
       ),
       child: IconButton(
-        tooltip: _listening ? 'Listening… tap to stop' : 'Tap to speak',
+        tooltip: _listening ? 'Listening... tap to stop' : 'Tap to speak',
         icon: Icon(
           _listening ? Icons.mic_rounded : Icons.mic_none_rounded,
           color: _listening ? AppColors.coral : AppColors.indigo,

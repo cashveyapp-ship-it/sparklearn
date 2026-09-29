@@ -6,6 +6,7 @@ import '../../providers/user_profile_provider.dart';
 import '../../providers/firebase_providers.dart';
 import '../../providers/shell_tab_provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/responsive/responsive_page.dart';
 import '../../services/encouragement_service.dart';
 import '../settings_screen.dart';
 import '../student/student_home_screen.dart';
@@ -124,7 +125,13 @@ class _AppShellState extends ConsumerState<AppShell> {
               ),
             ],
           ),
-          body: pages[safeIndex],
+          body: ResponsivePage(
+            maxWidth: 1200,
+            mobilePadding: 0,
+            tabletPadding: 12,
+            desktopPadding: 24,
+            child: pages[safeIndex],
+          ),
           bottomNavigationBar: NavigationBar(
             selectedIndex: safeIndex,
             onDestinationSelected: (i) =>

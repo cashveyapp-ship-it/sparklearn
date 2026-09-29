@@ -1,5 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
+
 import '../services/subscription_service.dart';
+import '../core/responsive/responsive_page.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -12,6 +16,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   final service = SubscriptionService.instance;
 
   bool loading = true;
+  bool subscribing = false;
 
   @override
   void initState() {
@@ -20,13 +25,57 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Future<void> _load() async {
-    await service.initialize();
+    try {
+      await service.initialize();
+    } finally {
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
+      }
+    }
+  }
 
-    if (!mounted) return;
+  Future<void> _subscribe({
+    required String productId,
+    ProductDetails? product,
+  }) async {
+    if (subscribing) return;
 
     setState(() {
-      loading = false;
+      subscribing = true;
     });
+
+    try {
+      if (kIsWeb) {
+        await service.startWebCheckout(productId);
+        return;
+      }
+
+      if (product == null) {
+        throw Exception(
+          'This subscription is not currently available.',
+        );
+      }
+
+      await service.buy(product);
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Unable to start subscription: $e',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          subscribing = false;
+        });
+      }
+    }
   }
 
   @override
@@ -34,57 +83,83 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final monthly = service.monthly;
     final yearly = service.yearly;
 
+    final monthlyEnabled = kIsWeb || monthly != null;
+
+    final yearlyEnabled = kIsWeb || yearly != null;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SparkLearn Premium'),
+        title: const Text(
+          'SparkLearn Premium',
+        ),
       ),
       body: loading
           ? const Center(
               child: CircularProgressIndicator(),
             )
-          : ListView(
-              padding: const EdgeInsets.all(20),
-              children: [
-                const Text(
-                  'Choose your plan',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+          : ResponsivePage(
+              maxWidth: 900,
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                children: [
+                  const Text(
+                    'Choose your plan',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Unlock SparkLearn Premium.',
-                ),
-                const SizedBox(height: 24),
-                _PlanCard(
-                  title: 'Monthly',
-                  price: monthly?.price ?? '\$1.99',
-                  subtitle: 'Billed monthly',
-                  onTap: monthly == null ? null : () => service.buy(monthly),
-                ),
-                const SizedBox(height: 16),
-                _PlanCard(
-                  title: 'Yearly',
-                  price: yearly?.price ?? '\$23.00',
-                  subtitle: 'Billed yearly • Save 4%',
-                  onTap: yearly == null ? null : () => service.buy(yearly),
-                ),
-                const SizedBox(height: 20),
-                TextButton(
-                  onPressed: service.restore,
-                  child: const Text('Restore Purchases'),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Subscriptions automatically renew unless canceled at least 24 hours before the end of the current period. Payment is charged to your Apple ID or Google Play account.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Unlock SparkLearn Premium.',
                   ),
-                ),
-              ],
+                  const SizedBox(height: 24),
+                  _PlanCard(
+                    title: 'Monthly',
+                    price: kIsWeb ? '\$1.99' : monthly?.price ?? '\$1.99',
+                    subtitle: 'Billed monthly',
+                    loading: subscribing,
+                    onTap: monthlyEnabled && !subscribing
+                        ? () => _subscribe(
+                              productId: SubscriptionService.monthlyId,
+                              product: monthly,
+                            )
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  _PlanCard(
+                    title: 'Yearly',
+                    price: kIsWeb ? '\$23.00' : yearly?.price ?? '\$23.00',
+                    subtitle: 'Billed yearly - Save 4%',
+                    loading: subscribing,
+                    onTap: yearlyEnabled && !subscribing
+                        ? () => _subscribe(
+                              productId: SubscriptionService.yearlyId,
+                              product: yearly,
+                            )
+                        : null,
+                  ),
+                  const SizedBox(height: 20),
+                  if (!kIsWeb)
+                    TextButton(
+                      onPressed: subscribing ? null : service.restore,
+                      child: const Text(
+                        'Restore Purchases',
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  Text(
+                    kIsWeb
+                        ? 'Subscriptions are securely processed by Stripe and automatically renew until canceled.'
+                        : 'Subscriptions automatically renew unless canceled at least 24 hours before the end of the current period. Payment is charged to your app store account at confirmation of purchase.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
             ),
     );
   }
@@ -96,12 +171,14 @@ class _PlanCard extends StatelessWidget {
     required this.price,
     required this.subtitle,
     required this.onTap,
+    required this.loading,
   });
 
   final String title;
   final String price;
   final String subtitle;
   final VoidCallback? onTap;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +210,17 @@ class _PlanCard extends StatelessWidget {
               width: double.infinity,
               child: FilledButton(
                 onPressed: onTap,
-                child: const Text('Subscribe'),
+                child: loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'Subscribe',
+                      ),
               ),
             ),
           ],
