@@ -111,7 +111,31 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Unlock SparkLearn Premium.',
+                    'SparkLearn Premium provides AI-powered tutoring and personalized reading practice to support student learning.',
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "What's included with Premium",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'AI Tutoring: AI-generated explanations and guidance for reading and comprehension.',
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Personalized Practice: Reading activities tailored to student learning goals.',
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Linked Accounts: Eligible connected parent and student accounts can share Premium access.',
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Monthly and yearly plans include the same Premium features.',
                   ),
                   const SizedBox(height: 24),
                   _PlanCard(
@@ -150,8 +174,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   const SizedBox(height: 16),
                   Text(
                     kIsWeb
-                        ? 'Subscriptions are securely processed by Stripe and automatically renew until canceled.'
-                        : 'Subscriptions automatically renew unless canceled at least 24 hours before the end of the current period. Payment is charged to your app store account at confirmation of purchase.',
+                        ? 'Subscriptions automatically renew unless canceled at least 24 hours before the end of the current subscription period. Payment will be charged to your app store account upon confirmation of purchase.'
+                        : 'Subscriptions automatically renew unless canceled at least 24 hours before the end of the current subscription period. Payment will be charged to your app store account upon confirmation of purchase.',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 12,
